@@ -19,5 +19,6 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run validate:fixtures
       - run: npm run validate:proxy
+      - run: node --check scripts/smoke-live-rpc.mjs
       - run: npm run typecheck
       - run: npm run build

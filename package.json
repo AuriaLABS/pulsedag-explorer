@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit --pretty false",
     "validate:fixtures": "node scripts/validate-rpc-fixtures.mjs",
-    "validate:proxy": "node scripts/validate-proxy-config.mjs"
+    "validate:proxy": "node scripts/validate-proxy-config.mjs",
+    "smoke:live": "node scripts/smoke-live-rpc.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

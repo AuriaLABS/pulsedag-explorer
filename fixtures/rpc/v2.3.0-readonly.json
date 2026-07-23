@@ -1,6 +1,16 @@
 {
   "release_line": "v2.3.0",
   "stable_prefix": "/api/v1",
+  "capture": {
+    "source": "approved Linux exact-candidate GitHub Actions artifact",
+    "candidate_sha": "7e43225f01ac05d15e5f1e3f1550d7850bf18cbc",
+    "workflow_run": 29854712585,
+    "artifact_id": 8505066594,
+    "artifact_digest": "sha256:f52c848ff3c6476fe5496ee1bbabcb9bc41eadaed4668c96a0d81c5fefc7e92f",
+    "network": "dev",
+    "captured_at_utc": "2026-07-23T04:39:03Z",
+    "scope": "consumed fields plus linked block and search evidence"
+  },
   "responses": {
     "/api/v1/status": {
       "ok": true,
@@ -8,32 +18,22 @@
         "rpc_response_degraded": false,
         "rpc_response_stale": false,
         "rpc_response_degraded_reason": null,
-        "network_id": "pulsedag-private-testnet",
-        "peer_summary": "peer_count=4 semantics=direct_transport_sessions",
+        "network_id": "pulsedag-devnet",
         "service": "pulsedagd",
         "version": "v2.3.0",
-        "chain_id": "pulsedag-private-testnet",
-        "best_height": 12840,
-        "uptime_secs": 86400,
-        "block_count": 12841,
-        "selected_tip": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
-        "selected_height": 12840,
-        "selected_blue_score": 19420,
-        "ordered_dag_tip": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
-        "ordering_version": "ghostdag-dev-v1",
-        "consensus_mode": "ghostdag_dev",
-        "tip_count": 2,
+        "chain_id": "pulsedag-devnet",
+        "best_height": 0,
+        "block_count": 1,
+        "selected_tip": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+        "selected_height": 0,
+        "consensus_mode": "legacy",
+        "tip_count": 1,
         "orphan_count": 0,
-        "mempool_size": 3,
-        "snapshot_exists": true,
-        "snapshot_height": 12700,
-        "persisted_block_count": 12841,
-        "p2p_enabled": true,
-        "p2p_mode": "libp2p-real",
-        "peer_count": 4,
-        "p2p_status_stale": false,
-        "p2p_status_degraded": false,
-        "sync_state": "synced",
+        "mempool_size": 0,
+        "snapshot_height": 0,
+        "p2p_mode": "memory-simulated",
+        "peer_count": 0,
+        "sync_state": "idle",
         "storage_backend": "rocksdb"
       },
       "error": null,
@@ -51,8 +51,10 @@
         "network_selected_height_gap": 0,
         "storage_replay_gap": 0,
         "live_sync_error_active": 0,
-        "p2p_ready_for_private_rehearsal": true,
-        "readiness_reasons": []
+        "p2p_ready_for_private_rehearsal": false,
+        "readiness_reasons": [
+          "no connected peers"
+        ]
       },
       "error": null,
       "meta": {}
@@ -60,17 +62,15 @@
     "/api/v1/mempool": {
       "ok": true,
       "data": {
-        "transaction_count": 3,
+        "transaction_count": 0,
         "orphan_transaction_count": 0,
-        "orphan_limit": 1024,
-        "spent_outpoints_count": 6,
-        "orphaned_total": 12,
-        "orphan_promoted_total": 10,
-        "orphan_dropped_total": 1,
-        "orphan_pruned_total": 1,
-        "txids": [
-          "1dd748674c51af34ee0d891553ac742d8ad8841fc4e87da7a78aa20c2cd1f8fd"
-        ]
+        "orphan_limit": 512,
+        "spent_outpoints_count": 0,
+        "orphaned_total": 0,
+        "orphan_promoted_total": 0,
+        "orphan_dropped_total": 0,
+        "orphan_pruned_total": 0,
+        "txids": []
       },
       "error": null,
       "meta": {}
@@ -78,11 +78,15 @@
     "/api/v1/pow/health": {
       "ok": true,
       "data": {
-        "status": "ok",
-        "snapshot_count": 32,
-        "latest_suggested_difficulty": 42000,
-        "latest_avg_block_interval_secs": 61,
-        "alerts": []
+        "status": "degraded",
+        "snapshot_count": 0,
+        "latest_suggested_difficulty": 0,
+        "latest_avg_block_interval_secs": 0,
+        "alerts": [
+          "missing latest PoW metrics snapshot",
+          "no PoW snapshots captured yet",
+          "difficulty suggestion unavailable"
+        ]
       },
       "error": null,
       "meta": {}
@@ -90,57 +94,63 @@
     "/api/v1/blocks/recent?limit=20": {
       "ok": true,
       "data": {
-        "count": 2,
-        "total": 12841,
+        "count": 1,
+        "total": 1,
         "limit": 20,
         "offset": 0,
-        "has_more": true,
+        "has_more": false,
         "blocks": [
           {
-            "hash": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
-            "height": 12840,
-            "blue_score": 19420,
-            "tx_count": 4,
-            "timestamp": 1784750400,
-            "parent_count": 2
-          },
-          {
-            "hash": "6a3d2e88961cc9d8eb43c15e7421ab2e5b92150c8e924a3c4a67b471720cc20f",
-            "height": 12839,
-            "blue_score": 19419,
-            "tx_count": 2,
-            "timestamp": 1784750339,
-            "parent_count": 1
+            "hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+            "height": 0,
+            "blue_score": 0,
+            "tx_count": 1,
+            "timestamp": 0,
+            "parent_count": 0
           }
         ]
       },
       "error": null,
       "meta": {}
     },
-    "/api/v1/blocks/e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11/overview": {
+    "/api/v1/blocks/0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047/overview": {
       "ok": true,
       "data": {
-        "hash": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
-        "height": 12840,
-        "blue_score": 19420,
-        "timestamp": 1784750400,
-        "parent_hashes": [
-          "6a3d2e88961cc9d8eb43c15e7421ab2e5b92150c8e924a3c4a67b471720cc20f"
-        ],
+        "hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+        "height": 0,
+        "blue_score": 0,
+        "timestamp": 0,
+        "parent_hashes": [],
         "child_hashes": [],
-        "tx_count": 4,
-        "txids": [],
+        "tx_count": 1,
+        "txids": [
+          "bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08"
+        ],
         "is_tip": true,
-        "selected_tip": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
+        "selected_tip": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
         "confirmations": 1
       },
       "error": null,
       "meta": {}
     },
-    "/api/v1/search/e7c2d0a9": {
+    "/api/v1/search/0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047": {
       "ok": true,
       "data": {
-        "query": "e7c2d0a9",
+        "query": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+        "kind": "block",
+        "found": true,
+        "hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+        "address": null,
+        "block_height": 0,
+        "status": "confirmed"
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/search/not-found": {
+      "ok": true,
+      "data": {
+        "query": "not-found",
         "kind": "unknown",
         "found": false,
         "hash": null,

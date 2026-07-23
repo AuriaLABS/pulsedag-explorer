@@ -9,13 +9,14 @@ A read-only explorer for the PulseDAG v2.3.0 private-testnet node API. The UI ca
 - Mempool counters from `GET /api/v1/mempool`
 - PoW cadence and health from `GET /api/v1/pow/health`
 - Recent DAG blocks from `GET /api/v1/blocks/recent`
+- Paginated DAG history from `GET /api/v1/blocks/page`
 - Block overview and parent hashes from `GET /api/v1/blocks/:hash/overview`
 - Transaction status, confirmations, inputs and outputs from `GET /api/v1/txs/:txid/lookup`
 - Address balances and pending state from `GET /api/v1/address/:address/summary`
 - Paginated confirmed and mempool address activity from `GET /api/v1/address/:address/activity`
 - Search for block hashes, transaction IDs and known addresses through `GET /api/v1/search/:query`
 - Linked navigation from transaction to block/address and from address activity to transaction/block
-- Shareable browser routes for blocks, transactions and addresses
+- Shareable browser routes and pagination state for blocks, transactions and addresses
 - Polling, timeout handling, degraded-state warnings and explicit live/mock mode
 - Dark and light themes with a responsive layout
 
@@ -56,33 +57,40 @@ PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 The explorer uses the browser History API without adding a client-side routing dependency:
 
 ```text
-/                         overview
-/blocks                   recent DAG blocks
-/node                     node health
-/block/<hash>              complete block overview
-/tx/<txid>                 transaction details
-/address/<address>         address summary and activity
+/                                      overview
+/blocks                                first block page
+/blocks?limit=50&offset=100            paginated DAG history
+/node                                  node health
+/block/<hash>                           complete block overview
+/tx/<txid>                              transaction details
+/address/<address>                      first address activity page
+/address/<address>?limit=20&offset=40   paginated address activity
 ```
 
-Search results and linked entities update the URL. Browser back/forward navigation and direct page reloads are supported. Production servers must retain the SPA fallback already present in `deploy/nginx/pulsedag-explorer.conf`:
+Search results, pagination controls and linked entities update the URL. Browser back/forward navigation and direct page reloads are supported. Page sizes are bounded to 100 rows and offsets are clamped to non-negative integers.
+
+Production servers must retain the SPA fallback already present in `deploy/nginx/pulsedag-explorer.conf`:
 
 ```nginx
 try_files $uri $uri/ /index.html;
 ```
 
-These browser routes do not broaden the RPC allowlist. Entity data still passes only through the explicit read-only `/rpc/api/v1/*` gateway routes.
+These browser routes do not expose RPC directly. Entity data still passes only through the explicit read-only `/rpc/api/v1/*` gateway routes.
 
-## RPC contract fixture
+## RPC contract fixtures
 
 `fixtures/rpc/v2.3.0-readonly.json` contains response fields captured from an isolated live run of the exact approved PulseDAG v2.3.0 Linux candidate. Its provenance records the candidate SHA, workflow run, artifact ID and GitHub Actions artifact digest, and CI validates those bindings together with one linked block → transaction → address → activity contract.
 
-Run the contract check directly with:
+`fixtures/rpc/v2.3.0-pagination.json` records first-page and terminal-page boundaries for block history and address activity from the same approved binary.
+
+Run the contract checks directly with:
 
 ```bash
 npm run validate:fixtures
+npm run validate:pagination
 ```
 
-When a PulseDAG response field used by the explorer changes, update the adapter and the fixture together. The fixture is a compatibility guard, not evidence that a public testnet is live.
+When a PulseDAG response field used by the explorer changes, update the adapter and the relevant fixture together. Fixtures are compatibility guards, not evidence that a public testnet is live.
 
 The full capture procedure and safety boundary are recorded in `docs/LIVE_RPC_VALIDATION_V2_3_0.md`.
 
@@ -94,7 +102,7 @@ With a PulseDAG v2.3.0 node already running on a loopback or private address:
 PULSEDAG_RPC_BASE_URL=http://127.0.0.1:8080/api/v1 npm run smoke:live
 ```
 
-The smoke test checks status, recent blocks, synchronization, mempool, PoW health, linked block overview, transaction lookup, address summary and activity, exact block/transaction/address searches, and the stable not-found response. It does not call write, wallet, mining or admin endpoints.
+The smoke test checks status, recent and paginated blocks, synchronization, mempool, PoW health, linked block overview, transaction lookup, address summary and paginated activity, exact block/transaction/address searches, terminal page boundaries and the stable not-found response. It does not call write, wallet, mining or admin endpoints.
 
 ## Production read-only gateway
 
@@ -104,6 +112,7 @@ The allowlist contains:
 
 - status
 - recent blocks
+- bounded block pagination with query preservation
 - one block overview
 - sync status
 - mempool status
@@ -131,6 +140,7 @@ This project represents the private-testnet baseline. It does not claim that pub
 
 ```bash
 npm run validate:fixtures
+npm run validate:pagination
 npm run validate:proxy
 npm run typecheck
 npm run build

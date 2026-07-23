@@ -1,11 +1,14 @@
 import { type ChangeEvent, type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { BlockDetails } from './components/BlockDetails'
+import { BlocksTable } from './components/BlocksTable'
 import { DagGraph } from './components/DagGraph'
 import { AddressDetails, TransactionDetails } from './components/EntityDetails'
 import { MetricCard } from './components/MetricCard'
 import { explorerApi } from './lib/api'
 import { blockDetailsApi } from './lib/blockDetails'
+import { paginationApi } from './lib/paginationApi'
 import {
+  DEFAULT_PAGE_LIMIT,
   explorerRouteHeading,
   explorerRoutePath,
   explorerRouteTitle,
@@ -13,7 +16,7 @@ import {
   type DashboardView,
   type ExplorerRoute,
 } from './lib/routes'
-import type { AddressDetail, DagEvent, ExplorerSnapshot, SearchResult, TransactionDetail } from './types'
+import type { AddressDetail, BlockPage, DagEvent, ExplorerSnapshot, SearchResult, TransactionDetail } from './types'
 
 const number = new Intl.NumberFormat('en-US')
 
@@ -23,6 +26,7 @@ function readableError(error: unknown): string {
 
 function App() {
   const [snapshot, setSnapshot] = useState<ExplorerSnapshot | null>(null)
+  const [blockPage, setBlockPage] = useState<BlockPage | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<DagEvent | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetail | null>(null)
   const [selectedAddress, setSelectedAddress] = useState<AddressDetail | null>(null)
@@ -30,13 +34,15 @@ function App() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [searchMessage, setSearchMessage] = useState('')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-  const [route, setRoute] = useState<ExplorerRoute>(() => parseExplorerRoute(window.location.pathname))
+  const [route, setRoute] = useState<ExplorerRoute>(() => parseExplorerRoute(window.location.pathname, window.location.search))
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [blockPageLoading, setBlockPageLoading] = useState(false)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
   const [detailError, setDetailError] = useState('')
+  const [blockPageError, setBlockPageError] = useState('')
   const [copyMessage, setCopyMessage] = useState('Copy link')
 
   const loadSnapshot = useCallback(async (silent = false) => {
@@ -65,13 +71,40 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-    const handlePopState = () => setRoute(parseExplorerRoute(window.location.pathname))
+    const handlePopState = () => setRoute(parseExplorerRoute(window.location.pathname, window.location.search))
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   useEffect(() => {
     document.title = explorerRouteTitle(route)
+  }, [route])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (route.kind !== 'dashboard' || route.view !== 'blocks') {
+      setBlockPage(null)
+      setBlockPageError('')
+      setBlockPageLoading(false)
+      return () => { cancelled = true }
+    }
+
+    setBlockPageLoading(true)
+    setBlockPageError('')
+    const loadPage = async () => {
+      try {
+        const page = await paginationApi.getBlocks(route.pagination.limit, route.pagination.offset)
+        if (!cancelled) setBlockPage(page)
+      } catch (loadError) {
+        if (!cancelled) setBlockPageError(readableError(loadError))
+      } finally {
+        if (!cancelled) setBlockPageLoading(false)
+      }
+    }
+
+    void loadPage()
+    return () => { cancelled = true }
   }, [route])
 
   useEffect(() => {
@@ -99,7 +132,7 @@ function App() {
           const transaction = await explorerApi.getTransaction(route.id)
           if (!cancelled) setSelectedTransaction(transaction)
         } else {
-          const address = await explorerApi.getAddress(route.id)
+          const address = await paginationApi.getAddress(route.id, route.pagination.limit, route.pagination.offset)
           if (!cancelled) setSelectedAddress(address)
         }
       } catch (loadError) {
@@ -141,7 +174,11 @@ function App() {
   }
 
   function goToDashboard(view: DashboardView) {
-    goTo({ kind: 'dashboard', view })
+    if (view === 'blocks') {
+      goTo({ kind: 'dashboard', view: 'blocks', pagination: { limit: DEFAULT_PAGE_LIMIT, offset: 0 } })
+    } else {
+      goTo({ kind: 'dashboard', view })
+    }
   }
 
   function leaveEntityPage() {
@@ -183,7 +220,7 @@ function App() {
   }
 
   function openAddress(address: string) {
-    goTo({ kind: 'address', id: address })
+    goTo({ kind: 'address', id: address, pagination: { limit: DEFAULT_PAGE_LIMIT, offset: 0 } })
   }
 
   function openSearchResult(result: SearchResult) {
@@ -194,8 +231,21 @@ function App() {
     else openAddress(result.id)
   }
 
+  function changeBlockPage(limit: number, offset: number) {
+    goTo({ kind: 'dashboard', view: 'blocks', pagination: { limit, offset } })
+  }
+
+  function changeAddressPage(limit: number, offset: number) {
+    if (route.kind !== 'address') return
+    goTo({ kind: 'address', id: route.id, pagination: { limit, offset } })
+  }
+
   function retryEntityRoute() {
-    setRoute(parseExplorerRoute(window.location.pathname))
+    setRoute(parseExplorerRoute(window.location.pathname, window.location.search))
+  }
+
+  function retryBlockPage() {
+    setRoute(parseExplorerRoute(window.location.pathname, window.location.search))
   }
 
   return (
@@ -305,29 +355,21 @@ function App() {
           </>
         )}
 
-        {(dashboardView === 'overview' || dashboardView === 'blocks') && snapshot && (
+        {((dashboardView === 'overview' && snapshot) || dashboardView === 'blocks') && (
           <section className="panel table-panel">
             <div className="panel-header">
-              <div><span className="eyebrow">Ledger feed</span><h3>Latest blocks</h3></div>
-              <button className="text-button" onClick={() => goToDashboard('blocks')}>View blocks →</button>
+              <div><span className="eyebrow">Ledger feed</span><h3>{dashboardView === 'blocks' ? 'Paginated blocks' : 'Latest blocks'}</h3></div>
+              {dashboardView === 'overview' && <button className="text-button" onClick={() => goToDashboard('blocks')}>View blocks →</button>}
             </div>
-            <div className="table-scroll">
-              <table>
-                <thead><tr><th>Block</th><th>Height</th><th>Age</th><th>Transactions</th><th>Blue score</th><th>Parents</th><th>Status</th></tr></thead>
-                <tbody>{events.map((event) => (
-                  <tr key={event.id} onClick={() => openBlock(event.id)}>
-                    <td><span className="hash">{event.shortId}</span></td>
-                    <td>{number.format(event.height)}</td>
-                    <td>{event.age}</td>
-                    <td>{event.transactions}</td>
-                    <td>{number.format(event.blueScore)}</td>
-                    <td>{event.parentCount}</td>
-                    <td><span className={`status status-${event.status}`}><i />{event.status}</span></td>
-                  </tr>
-                ))}</tbody>
-              </table>
-              {events.length === 0 && <p className="empty-state">The node returned no blocks.</p>}
-            </div>
+            <BlocksTable
+              events={events}
+              page={dashboardView === 'blocks' ? blockPage : undefined}
+              loading={dashboardView === 'blocks' && blockPageLoading}
+              error={dashboardView === 'blocks' ? blockPageError : ''}
+              onOpenBlock={openBlock}
+              onPageChange={dashboardView === 'blocks' ? changeBlockPage : undefined}
+              onRetry={dashboardView === 'blocks' ? retryBlockPage : undefined}
+            />
           </section>
         )}
 
@@ -375,7 +417,14 @@ function App() {
                 <TransactionDetails transaction={selectedTransaction} onOpenTransaction={openTransaction} onOpenAddress={openAddress} onOpenBlock={openBlock} />
               )}
               {!detailLoading && !detailError && selectedAddress && (
-                <AddressDetails address={selectedAddress} onOpenTransaction={openTransaction} onOpenAddress={openAddress} onOpenBlock={openBlock} />
+                <AddressDetails
+                  address={selectedAddress}
+                  onOpenTransaction={openTransaction}
+                  onOpenAddress={openAddress}
+                  onOpenBlock={openBlock}
+                  onActivityPageChange={changeAddressPage}
+                  pageLoading={detailLoading}
+                />
               )}
             </article>
           </section>

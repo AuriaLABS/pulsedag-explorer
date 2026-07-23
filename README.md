@@ -46,6 +46,18 @@ PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 
 `VITE_API_BASE_URL` may also point at a browser-accessible read-only gateway. It can be either the gateway root or a URL ending in `/api/v1`.
 
+## RPC contract fixture
+
+`fixtures/rpc/v2.3.0-readonly.json` records representative successful responses for every read-only RPC surface consumed by the UI. It is intentionally limited to private-testnet, non-secret data and is validated in CI.
+
+Run the contract check directly with:
+
+```bash
+npm run validate:fixtures
+```
+
+When a PulseDAG response field used by the explorer changes, update the adapter and the fixture together. The fixture is a compatibility guard, not evidence that a public testnet is live.
+
 ## Security boundary
 
 PulseDAG operator guidance keeps node RPC bound to loopback. For production, place a same-origin reverse proxy beside the explorer and expose only the read-only routes the UI needs. Do not forward `/admin`, wallet, mining or transaction-submission routes, and do not embed an operator token in frontend environment variables.
@@ -55,6 +67,7 @@ This project represents the private-testnet baseline. It does not claim that pub
 ## Validation
 
 ```bash
+npm run validate:fixtures
 npm run typecheck
 npm run build
 ```

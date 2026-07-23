@@ -1,5 +1,13 @@
 import { createMockSnapshot, findMockBlock, searchMockData } from '../data/mock'
-import type { DagEvent, ExplorerSnapshot, NetworkStats, NodeInfo, SearchResult } from '../types'
+import type {
+  AddressDetail,
+  DagEvent,
+  ExplorerSnapshot,
+  NetworkStats,
+  NodeInfo,
+  SearchResult,
+  TransactionDetail,
+} from '../types'
 
 interface ApiEnvelope<T> {
   ok: boolean
@@ -92,6 +100,53 @@ interface SearchResultData {
   address: string | null
   block_height: number | null
   status: string | null
+}
+
+interface TransactionLookupData {
+  txid: string
+  status: string
+  is_mempool: boolean
+  is_confirmed: boolean
+  fee: number
+  nonce: number
+  block_hash: string | null
+  block_height: number | null
+  confirmations: number | null
+  inputs: Array<{ txid: string; index: number }>
+  outputs: Array<{ address: string; amount: number }>
+}
+
+interface AddressSummaryData {
+  address: string
+  confirmed_balance: number
+  confirmed_utxo_count: number
+  pending_incoming: number
+  pending_outgoing: number
+  pending_net: number
+  mempool_tx_count: number
+  mempool_txids: string[]
+  mempool_explicit: boolean
+}
+
+interface AddressActivityData {
+  address: string
+  count: number
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
+  activity: Array<{
+    txid: string
+    direction: string
+    incoming: number
+    outgoing: number
+    net: number
+    context: string
+    is_mempool: boolean
+    is_confirmed: boolean
+    block_hash: string | null
+    block_height: number | null
+  }>
 }
 
 const configuredMode = import.meta.env.VITE_DATA_MODE?.trim().toLowerCase()
@@ -300,6 +355,58 @@ export const explorerApi = {
       parentCount: block.parent_hashes.length,
       height: block.height,
       blueScore: block.blue_score,
+    }
+  },
+
+  async getTransaction(txid: string): Promise<TransactionDetail> {
+    if (!isLiveMode) throw new PulseDagApiError('Transaction details require a live PulseDAG RPC connection')
+    const transaction = await request<TransactionLookupData>(`/txs/${encodeURIComponent(txid)}/lookup`)
+    return {
+      txid: transaction.txid,
+      status: transaction.status,
+      isMempool: transaction.is_mempool,
+      isConfirmed: transaction.is_confirmed,
+      fee: transaction.fee,
+      nonce: transaction.nonce,
+      blockHash: transaction.block_hash,
+      blockHeight: transaction.block_height,
+      confirmations: transaction.confirmations,
+      inputs: transaction.inputs,
+      outputs: transaction.outputs,
+    }
+  },
+
+  async getAddress(address: string): Promise<AddressDetail> {
+    if (!isLiveMode) throw new PulseDagApiError('Address details require a live PulseDAG RPC connection')
+    const encodedAddress = encodeURIComponent(address)
+    const [summary, activity] = await Promise.all([
+      request<AddressSummaryData>(`/address/${encodedAddress}/summary`),
+      request<AddressActivityData>(`/address/${encodedAddress}/activity?limit=20&offset=0`),
+    ])
+    return {
+      address: summary.address,
+      confirmedBalance: summary.confirmed_balance,
+      confirmedUtxoCount: summary.confirmed_utxo_count,
+      pendingIncoming: summary.pending_incoming,
+      pendingOutgoing: summary.pending_outgoing,
+      pendingNet: summary.pending_net,
+      mempoolTxCount: summary.mempool_tx_count,
+      mempoolTxids: summary.mempool_txids,
+      mempoolExplicit: summary.mempool_explicit,
+      activity: activity.activity.map((item) => ({
+        txid: item.txid,
+        direction: item.direction,
+        incoming: item.incoming,
+        outgoing: item.outgoing,
+        net: item.net,
+        context: item.context,
+        isMempool: item.is_mempool,
+        isConfirmed: item.is_confirmed,
+        blockHash: item.block_hash,
+        blockHeight: item.block_height,
+      })),
+      activityTotal: activity.total,
+      activityHasMore: activity.has_more,
     }
   },
 

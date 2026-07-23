@@ -53,10 +53,13 @@ The validation exercised every route consumed by the explorer:
 - `GET /api/v1/mempool`
 - `GET /api/v1/pow/health`
 - `GET /api/v1/blocks/:hash/overview`
-- `GET /api/v1/search/:query` with an exact block hash
+- `GET /api/v1/txs/:txid/lookup`
+- `GET /api/v1/address/:address/summary`
+- `GET /api/v1/address/:address/activity?limit=20&offset=0`
+- `GET /api/v1/search/:query` with exact block, transaction and address identifiers
 - `GET /api/v1/search/not-found`
 
-## Observed contract
+## Observed linked contract
 
 The exact binary returned:
 
@@ -70,7 +73,14 @@ The exact binary returned:
 - sync lag: `0`
 - mempool transactions: `0`
 - exact block overview: resolved
-- exact block search: resolved as `kind=block`, `status=confirmed`
+- linked transaction: `bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08`
+- transaction status: `confirmed`
+- transaction block hash and height matching the selected block
+- transaction outputs: one output to `genesis-treasury` for `1000000000`
+- address confirmed balance: `1000000000`
+- address confirmed UTXOs: `1`
+- address activity: one confirmed incoming entry linked to the same transaction and block
+- exact searches: block, transaction and address all resolved with their stable kinds
 - missing search: stable `found=false`, `kind=unknown` response
 
 The isolated node correctly reported zero connected peers. PoW health was `degraded` because no PoW metric snapshots had been captured; its alerts were:
@@ -89,7 +99,9 @@ With a compatible v2.3.0 node already running:
 PULSEDAG_RPC_BASE_URL=http://127.0.0.1:18080/api/v1 npm run smoke:live
 ```
 
-Observed result:
+The command follows the same linked path used by the interface: status and recent block, overview, transaction lookup, output address summary and activity, exact searches, and the stable missing search response.
+
+Observed result fields:
 
 ```json
 {
@@ -97,6 +109,10 @@ Observed result:
   "chain_id": "pulsedag-devnet",
   "best_height": 0,
   "head_hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+  "transaction_id": "bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08",
+  "output_address": "genesis-treasury",
+  "confirmed_balance": 1000000000,
+  "address_activity_total": 1,
   "peer_count": 0,
   "sync_state": "synced",
   "lag_blocks": 0,
@@ -108,8 +124,14 @@ Observed result:
 
 ## Fixture binding
 
-`fixtures/rpc/v2.3.0-readonly.json` contains the consumed response fields captured from this run. Its validator binds the fixture to the candidate SHA, workflow run, artifact ID and artifact digest, and verifies that status, recent block, block overview and exact search all refer to the same block.
+`fixtures/rpc/v2.3.0-readonly.json` contains the consumed response fields captured from this run. Its validator binds the fixture to the candidate SHA, workflow run, artifact ID and artifact digest, and verifies one consistent chain across:
+
+1. node status and recent block;
+2. block overview and transaction ID;
+3. transaction lookup, block and output address;
+4. address summary, balance and activity;
+5. exact block, transaction and address searches.
 
 ## Conclusion
 
-The explorer's read-only adapter contract is compatible with the approved PulseDAG v2.3.0 Linux candidate in an isolated live-node test. Production deployment still requires the deny-by-default read-only reverse proxy and must not expose the node RPC directly to browsers.
+The explorer's block, transaction and address read-only adapter contract is compatible with the approved PulseDAG v2.3.0 Linux candidate in an isolated live-node test. Production deployment still requires the deny-by-default read-only reverse proxy and must not expose the node RPC directly to browsers.

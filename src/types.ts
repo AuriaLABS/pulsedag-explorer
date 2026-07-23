@@ -33,6 +33,9 @@ export interface DagEvent {
   parentCount: number
   height: number
   blueScore: number
+  txids?: string[]
+  confirmations?: number | null
+  isTip?: boolean | null
 }
 
 export interface NodeInfo {

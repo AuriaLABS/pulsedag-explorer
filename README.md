@@ -48,7 +48,7 @@ PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 
 ## RPC contract fixture
 
-`fixtures/rpc/v2.3.0-readonly.json` records representative successful responses for every read-only RPC surface consumed by the UI. It is intentionally limited to private-testnet, non-secret data and is validated in CI.
+`fixtures/rpc/v2.3.0-readonly.json` contains response fields captured from an isolated live run of the exact approved PulseDAG v2.3.0 Linux candidate. Its provenance records the candidate SHA, workflow run, artifact ID and GitHub Actions artifact digest, and CI validates those bindings together with the response contract.
 
 Run the contract check directly with:
 
@@ -57,6 +57,18 @@ npm run validate:fixtures
 ```
 
 When a PulseDAG response field used by the explorer changes, update the adapter and the fixture together. The fixture is a compatibility guard, not evidence that a public testnet is live.
+
+The full capture procedure and safety boundary are recorded in `docs/LIVE_RPC_VALIDATION_V2_3_0.md`.
+
+## Live RPC smoke test
+
+With a PulseDAG v2.3.0 node already running on a loopback or private address:
+
+```bash
+PULSEDAG_RPC_BASE_URL=http://127.0.0.1:8080/api/v1 npm run smoke:live
+```
+
+The smoke test checks status, recent blocks, synchronization, mempool, PoW health, linked block overview, exact block search and the stable not-found search response. It does not call write, wallet, mining or admin endpoints.
 
 ## Production read-only gateway
 
@@ -94,3 +106,5 @@ npm run validate:proxy
 npm run typecheck
 npm run build
 ```
+
+For a separately running v2.3.0 node, also run `npm run smoke:live` with `PULSEDAG_RPC_BASE_URL` set to its stable `/api/v1` prefix.

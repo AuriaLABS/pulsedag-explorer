@@ -15,6 +15,7 @@ A read-only explorer for the PulseDAG v2.3.0 private-testnet node API. The UI ca
 - Paginated confirmed and mempool address activity from `GET /api/v1/address/:address/activity`
 - Search for block hashes, transaction IDs and known addresses through `GET /api/v1/search/:query`
 - Linked navigation from transaction to block/address and from address activity to transaction/block
+- Shareable browser routes for blocks, transactions and addresses
 - Polling, timeout handling, degraded-state warnings and explicit live/mock mode
 - Dark and light themes with a responsive layout
 
@@ -49,6 +50,27 @@ PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 ```
 
 `VITE_API_BASE_URL` may also point at a browser-accessible read-only gateway. It can be either the gateway root or a URL ending in `/api/v1`.
+
+## Shareable explorer routes
+
+The explorer uses the browser History API without adding a client-side routing dependency:
+
+```text
+/                         overview
+/blocks                   recent DAG blocks
+/node                     node health
+/block/<hash>              complete block overview
+/tx/<txid>                 transaction details
+/address/<address>         address summary and activity
+```
+
+Search results and linked entities update the URL. Browser back/forward navigation and direct page reloads are supported. Production servers must retain the SPA fallback already present in `deploy/nginx/pulsedag-explorer.conf`:
+
+```nginx
+try_files $uri $uri/ /index.html;
+```
+
+These browser routes do not broaden the RPC allowlist. Entity data still passes only through the explicit read-only `/rpc/api/v1/*` gateway routes.
 
 ## RPC contract fixture
 

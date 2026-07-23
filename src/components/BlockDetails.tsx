@@ -9,6 +9,10 @@ interface BlockDetailsProps {
 }
 
 export function BlockDetails({ block, onOpenBlock, onOpenTransaction }: BlockDetailsProps) {
+  const txids = block.txids ?? []
+  const confirmations = block.confirmations ?? null
+  const isTip = block.isTip ?? null
+
   return (
     <>
       <span className="eyebrow">DAG block</span>
@@ -19,13 +23,13 @@ export function BlockDetails({ block, onOpenBlock, onOpenTransaction }: BlockDet
         <div><small>Height</small><strong>{number.format(block.height)}</strong></div>
         <div><small>Blue score</small><strong>{number.format(block.blueScore)}</strong></div>
         <div><small>Transactions</small><strong>{number.format(block.transactions)}</strong></div>
-        <div><small>Confirmations</small><strong>{block.confirmations === null ? '—' : number.format(block.confirmations)}</strong></div>
+        <div><small>Confirmations</small><strong>{confirmations === null ? '—' : number.format(confirmations)}</strong></div>
       </div>
 
       <dl>
         <div><dt>Block hash</dt><dd className="wrap-hash">{block.id}</dd></div>
         <div><dt>Timestamp</dt><dd>{new Date(block.timestamp).toLocaleString()}</dd></div>
-        <div><dt>DAG tip</dt><dd>{block.isTip === null ? '—' : block.isTip ? 'yes' : 'no'}</dd></div>
+        <div><dt>DAG tip</dt><dd>{isTip === null ? '—' : isTip ? 'yes' : 'no'}</dd></div>
         <div><dt>Parents</dt><dd>{number.format(block.parentCount)}</dd></div>
       </dl>
 
@@ -51,13 +55,13 @@ export function BlockDetails({ block, onOpenBlock, onOpenTransaction }: BlockDet
       <section className="entity-section">
         <div className="entity-section-header">
           <span className="eyebrow">Transactions</span>
-          <strong>{block.txids.length}</strong>
+          <strong>{txids.length}</strong>
         </div>
-        {block.txids.length === 0 ? (
-          <p className="entity-empty">Transaction IDs are available after loading the complete block overview.</p>
+        {txids.length === 0 ? (
+          <p className="entity-empty">No transaction identifiers were returned for this block overview.</p>
         ) : (
           <div className="entity-list">
-            {block.txids.map((txid) => (
+            {txids.map((txid) => (
               <button className="entity-row" key={txid} onClick={() => onOpenTransaction(txid)}>
                 <span className="wrap-hash">{txid}</span>
                 <small>Open transaction</small>

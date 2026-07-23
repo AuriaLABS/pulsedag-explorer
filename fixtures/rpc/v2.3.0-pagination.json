@@ -1,0 +1,65 @@
+{
+  "release_line": "v2.3.0",
+  "stable_prefix": "/api/v1",
+  "capture": {
+    "source": "approved Linux exact-candidate GitHub Actions artifact",
+    "candidate_sha": "7e43225f01ac05d15e5f1e3f1550d7850bf18cbc",
+    "workflow_run": 29854712585,
+    "artifact_id": 8505066594,
+    "artifact_digest": "sha256:f52c848ff3c6476fe5496ee1bbabcb9bc41eadaed4668c96a0d81c5fefc7e92f",
+    "network": "dev",
+    "captured_at_utc": "2026-07-23T16:55:49Z",
+    "scope": "bounded block and address activity pagination responses"
+  },
+  "responses": {
+    "/api/v1/blocks/page?limit=20&offset=0": {
+      "ok": true,
+      "data": {
+        "count": 1,
+        "total": 1,
+        "limit": 20,
+        "offset": 0,
+        "has_more": false,
+        "blocks": [
+          {
+            "hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+            "height": 0,
+            "blue_score": 0,
+            "tx_count": 1,
+            "timestamp": 0,
+            "parent_count": 0
+          }
+        ]
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/blocks/page?limit=20&offset=20": {
+      "ok": true,
+      "data": {
+        "count": 0,
+        "total": 1,
+        "limit": 20,
+        "offset": 20,
+        "has_more": false,
+        "blocks": []
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/address/genesis-treasury/activity?limit=20&offset=1": {
+      "ok": true,
+      "data": {
+        "address": "genesis-treasury",
+        "count": 0,
+        "total": 1,
+        "limit": 20,
+        "offset": 1,
+        "has_more": false,
+        "activity": []
+      },
+      "error": null,
+      "meta": {}
+    }
+  }
+}

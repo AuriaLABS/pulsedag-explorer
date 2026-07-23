@@ -14,6 +14,7 @@ function assert(condition, message) {
 const expectedProxyTargets = new Set([
   '/api/v1/status',
   '/api/v1/blocks/recent',
+  '/api/v1/blocks/page$is_args$args',
   '/api/v1/blocks/$1/overview',
   '/api/v1/sync/status',
   '/api/v1/mempool',
@@ -50,6 +51,8 @@ for (const fragment of forbiddenFragments) {
   assert(!proxyTargets.some((target) => target.includes(fragment)), `write or operator route is exposed: ${fragment}`)
 }
 
+assert(config.includes('location = /rpc/api/v1/blocks/page'), 'block pagination must use an exact route')
+assert(config.includes('/blocks/page$is_args$args'), 'block pagination query parameters must be preserved')
 assert(config.includes('location ~ ^/rpc/api/v1/txs/([0-9A-Fa-f]{16,128})/lookup$'), 'transaction lookup must require a bounded hexadecimal txid')
 assert(config.includes('location ~ ^/rpc/api/v1/address/([A-Za-z0-9._:-]{1,256})/summary$'), 'address summary must use a bounded safe path alphabet')
 assert(config.includes('location ~ ^/rpc/api/v1/address/([A-Za-z0-9._:-]{1,256})/activity$'), 'address activity must use a bounded safe path alphabet')

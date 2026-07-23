@@ -1,0 +1,155 @@
+{
+  "release_line": "v2.3.0",
+  "stable_prefix": "/api/v1",
+  "responses": {
+    "/api/v1/status": {
+      "ok": true,
+      "data": {
+        "rpc_response_degraded": false,
+        "rpc_response_stale": false,
+        "rpc_response_degraded_reason": null,
+        "network_id": "pulsedag-private-testnet",
+        "peer_summary": "peer_count=4 semantics=direct_transport_sessions",
+        "service": "pulsedagd",
+        "version": "v2.3.0",
+        "chain_id": "pulsedag-private-testnet",
+        "best_height": 12840,
+        "uptime_secs": 86400,
+        "block_count": 12841,
+        "selected_tip": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
+        "selected_height": 12840,
+        "selected_blue_score": 19420,
+        "ordered_dag_tip": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
+        "ordering_version": "ghostdag-dev-v1",
+        "consensus_mode": "ghostdag_dev",
+        "tip_count": 2,
+        "orphan_count": 0,
+        "mempool_size": 3,
+        "snapshot_exists": true,
+        "snapshot_height": 12700,
+        "persisted_block_count": 12841,
+        "p2p_enabled": true,
+        "p2p_mode": "libp2p-real",
+        "peer_count": 4,
+        "p2p_status_stale": false,
+        "p2p_status_degraded": false,
+        "sync_state": "synced",
+        "storage_backend": "rocksdb"
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/sync/status": {
+      "ok": true,
+      "data": {
+        "rpc_response_degraded": false,
+        "rpc_response_stale": false,
+        "consistency_ok": true,
+        "consistency_issue_count": 0,
+        "lag_blocks": 0,
+        "sync_state": "synced",
+        "network_selected_height_gap": 0,
+        "storage_replay_gap": 0,
+        "live_sync_error_active": 0,
+        "p2p_ready_for_private_rehearsal": true,
+        "readiness_reasons": []
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/mempool": {
+      "ok": true,
+      "data": {
+        "transaction_count": 3,
+        "orphan_transaction_count": 0,
+        "orphan_limit": 1024,
+        "spent_outpoints_count": 6,
+        "orphaned_total": 12,
+        "orphan_promoted_total": 10,
+        "orphan_dropped_total": 1,
+        "orphan_pruned_total": 1,
+        "txids": [
+          "1dd748674c51af34ee0d891553ac742d8ad8841fc4e87da7a78aa20c2cd1f8fd"
+        ]
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/pow/health": {
+      "ok": true,
+      "data": {
+        "status": "ok",
+        "snapshot_count": 32,
+        "latest_suggested_difficulty": 42000,
+        "latest_avg_block_interval_secs": 61,
+        "alerts": []
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/blocks/recent?limit=20": {
+      "ok": true,
+      "data": {
+        "count": 2,
+        "total": 12841,
+        "limit": 20,
+        "offset": 0,
+        "has_more": true,
+        "blocks": [
+          {
+            "hash": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
+            "height": 12840,
+            "blue_score": 19420,
+            "tx_count": 4,
+            "timestamp": 1784750400,
+            "parent_count": 2
+          },
+          {
+            "hash": "6a3d2e88961cc9d8eb43c15e7421ab2e5b92150c8e924a3c4a67b471720cc20f",
+            "height": 12839,
+            "blue_score": 19419,
+            "tx_count": 2,
+            "timestamp": 1784750339,
+            "parent_count": 1
+          }
+        ]
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/blocks/e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11/overview": {
+      "ok": true,
+      "data": {
+        "hash": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
+        "height": 12840,
+        "blue_score": 19420,
+        "timestamp": 1784750400,
+        "parent_hashes": [
+          "6a3d2e88961cc9d8eb43c15e7421ab2e5b92150c8e924a3c4a67b471720cc20f"
+        ],
+        "child_hashes": [],
+        "tx_count": 4,
+        "txids": [],
+        "is_tip": true,
+        "selected_tip": "e7c2d0a9f42b817843e6940b7f36c3c17be1f98d742f6b515dc7e2c7bde98a11",
+        "confirmations": 1
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/search/e7c2d0a9": {
+      "ok": true,
+      "data": {
+        "query": "e7c2d0a9",
+        "kind": "unknown",
+        "found": false,
+        "hash": null,
+        "address": null,
+        "block_height": null,
+        "status": null
+      },
+      "error": null,
+      "meta": {}
+    }
+  }
+}

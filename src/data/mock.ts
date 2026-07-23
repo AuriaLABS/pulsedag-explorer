@@ -16,17 +16,21 @@ function createEvents(): DagEvent[] {
   const now = Date.now()
   return hashes.map((hash, index) => {
     const timestamp = new Date(now - (index + 1) * 12_000).toISOString()
+    const transactionCount = [4, 2, 7, 1, 3][index]
     return {
       id: hash,
       shortId: shortHash(hash),
       timestamp,
       age: `${(index + 1) * 12}s`,
-      transactions: [4, 2, 7, 1, 3][index],
+      transactions: transactionCount,
       status: 'accepted',
       parents: index < hashes.length - 1 ? [hashes[index + 1]] : [],
       parentCount: index < hashes.length - 1 ? 1 : 0,
       height: 12_840 - index,
       blueScore: 19_420 - index,
+      txids: Array.from({ length: transactionCount }, (_, txIndex) => `${hash.slice(0, 56)}${String(txIndex).padStart(8, '0')}`),
+      confirmations: index + 1,
+      isTip: index === 0,
     }
   })
 }

@@ -121,10 +121,10 @@ export interface AddressDetail {
   mempoolTxids: string[]
   mempoolExplicit: boolean
   activity: AddressActivityItem[]
-  activityCount: number
+  activityCount?: number
   activityTotal: number
-  activityLimit: number
-  activityOffset: number
+  activityLimit?: number
+  activityOffset?: number
   activityHasMore: boolean
 }
 

@@ -149,10 +149,10 @@ export function AddressDetails({
           </div>
         )}
         <PaginationControls
-          count={address.activityCount}
+          count={address.activityCount ?? address.activity.length}
           total={address.activityTotal}
-          limit={address.activityLimit}
-          offset={address.activityOffset}
+          limit={address.activityLimit ?? 20}
+          offset={address.activityOffset ?? 0}
           hasMore={address.activityHasMore}
           label="Address activity"
           disabled={pageLoading}

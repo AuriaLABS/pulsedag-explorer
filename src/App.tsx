@@ -1,8 +1,9 @@
 import { type ChangeEvent, type CSSProperties, type FormEvent, type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { DagGraph } from './components/DagGraph'
+import { AddressDetails, TransactionDetails } from './components/EntityDetails'
 import { MetricCard } from './components/MetricCard'
 import { explorerApi } from './lib/api'
-import type { DagEvent, ExplorerSnapshot, SearchResult } from './types'
+import type { AddressDetail, DagEvent, ExplorerSnapshot, SearchResult, TransactionDetail } from './types'
 
 const number = new Intl.NumberFormat('en-US')
 
@@ -13,6 +14,8 @@ function readableError(error: unknown): string {
 function App() {
   const [snapshot, setSnapshot] = useState<ExplorerSnapshot | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<DagEvent | null>(null)
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetail | null>(null)
+  const [selectedAddress, setSelectedAddress] = useState<AddressDetail | null>(null)
   const [selectedSearchResult, setSelectedSearchResult] = useState<SearchResult | null>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -67,6 +70,13 @@ function App() {
     return `${stats.chainId} · ${stats.consensusMode}`
   }, [stats])
 
+  function clearDetails() {
+    setSelectedEvent(null)
+    setSelectedTransaction(null)
+    setSelectedAddress(null)
+    setSelectedSearchResult(null)
+  }
+
   async function handleSearch(event: FormEvent) {
     event.preventDefault()
     setSearching(true)
@@ -84,7 +94,7 @@ function App() {
   }
 
   async function openEvent(event: DagEvent) {
-    setSelectedSearchResult(null)
+    clearDetails()
     setSelectedEvent(event)
     if (event.parents.length > 0) return
 
@@ -99,34 +109,76 @@ function App() {
     }
   }
 
+  async function openBlock(hash: string) {
+    const existing = events.find((event) => event.id === hash)
+    if (existing) {
+      await openEvent(existing)
+      return
+    }
+
+    setDetailLoading(true)
+    try {
+      const detailed = await explorerApi.getBlockOverview(hash)
+      if (detailed) {
+        clearDetails()
+        setSelectedEvent(detailed)
+      }
+    } catch (detailError) {
+      setError(readableError(detailError))
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  async function openTransaction(txid: string) {
+    setDetailLoading(true)
+    try {
+      const transaction = await explorerApi.getTransaction(txid)
+      clearDetails()
+      setSelectedTransaction(transaction)
+    } catch (detailError) {
+      setError(readableError(detailError))
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  async function openAddress(address: string) {
+    setDetailLoading(true)
+    try {
+      const detail = await explorerApi.getAddress(address)
+      clearDetails()
+      setSelectedAddress(detail)
+    } catch (detailError) {
+      setError(readableError(detailError))
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
   async function openSearchResult(result: SearchResult) {
     setResults([])
     setSearchMessage('')
+    setSelectedSearchResult(result)
+
     if (result.kind === 'block') {
-      const existing = events.find((event) => event.id === result.id)
-      if (existing) {
-        await openEvent(existing)
-        return
-      }
-      setDetailLoading(true)
-      try {
-        const detailed = await explorerApi.getBlockOverview(result.id)
-        if (detailed) setSelectedEvent(detailed)
-      } catch (detailError) {
-        setError(readableError(detailError))
-      } finally {
-        setDetailLoading(false)
-      }
+      await openBlock(result.id)
       return
     }
-    setSelectedEvent(null)
-    setSelectedSearchResult(result)
+    if (result.kind === 'transaction') {
+      await openTransaction(result.id)
+      return
+    }
+    if (result.kind === 'address') {
+      await openAddress(result.id)
+    }
   }
 
   function closeDrawer() {
-    setSelectedEvent(null)
-    setSelectedSearchResult(null)
+    clearDetails()
   }
+
+  const drawerOpen = Boolean(selectedEvent || selectedTransaction || selectedAddress || selectedSearchResult)
 
   return (
     <div className="app-shell">
@@ -283,15 +335,15 @@ function App() {
         )}
       </main>
 
-      {(selectedEvent || selectedSearchResult) && (
+      {drawerOpen && (
         <div className="drawer-backdrop" onClick={closeDrawer}>
           <aside className="detail-drawer" onClick={(event: MouseEvent<HTMLElement>) => event.stopPropagation()}>
             <button className="drawer-close" onClick={closeDrawer} aria-label="Close details">×</button>
+            {detailLoading && <p className="drawer-loading">Loading linked RPC details…</p>}
             {selectedEvent ? (
               <>
                 <span className="eyebrow">DAG block</span><h2>{selectedEvent.shortId}</h2>
                 <span className={`status status-${selectedEvent.status}`}><i />{selectedEvent.status}</span>
-                {detailLoading && <p className="drawer-loading">Loading full block overview…</p>}
                 <dl>
                   <div><dt>Full hash</dt><dd className="wrap-hash">{selectedEvent.id}</dd></div>
                   <div><dt>Height</dt><dd>{number.format(selectedEvent.height)}</dd></div>
@@ -301,6 +353,20 @@ function App() {
                   <div><dt>Parents</dt><dd>{selectedEvent.parents.length > 0 ? selectedEvent.parents.map((parent) => <span className="parent-hash" key={parent}>{parent}</span>) : `${selectedEvent.parentCount} parent reference(s)`}</dd></div>
                 </dl>
               </>
+            ) : selectedTransaction ? (
+              <TransactionDetails
+                transaction={selectedTransaction}
+                onOpenTransaction={(txid) => void openTransaction(txid)}
+                onOpenAddress={(address) => void openAddress(address)}
+                onOpenBlock={(hash) => void openBlock(hash)}
+              />
+            ) : selectedAddress ? (
+              <AddressDetails
+                address={selectedAddress}
+                onOpenTransaction={(txid) => void openTransaction(txid)}
+                onOpenAddress={(address) => void openAddress(address)}
+                onOpenBlock={(hash) => void openBlock(hash)}
+              />
             ) : selectedSearchResult ? (
               <>
                 <span className="eyebrow">Search result</span><h2>{selectedSearchResult.kind}</h2>

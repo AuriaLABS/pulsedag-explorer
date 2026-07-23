@@ -8,8 +8,8 @@
     "artifact_id": 8505066594,
     "artifact_digest": "sha256:f52c848ff3c6476fe5496ee1bbabcb9bc41eadaed4668c96a0d81c5fefc7e92f",
     "network": "dev",
-    "captured_at_utc": "2026-07-23T04:39:03Z",
-    "scope": "consumed fields plus linked block and search evidence"
+    "captured_at_utc": "2026-07-23T04:55:43Z",
+    "scope": "linked block, transaction, address, activity and search evidence consumed by the explorer"
   },
   "responses": {
     "/api/v1/status": {
@@ -133,6 +133,72 @@
       "error": null,
       "meta": {}
     },
+    "/api/v1/txs/bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08/lookup": {
+      "ok": true,
+      "data": {
+        "txid": "bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08",
+        "status": "confirmed",
+        "is_mempool": false,
+        "is_confirmed": true,
+        "fee": 0,
+        "nonce": 0,
+        "block_hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+        "block_height": 0,
+        "confirmations": 1,
+        "inputs": [],
+        "outputs": [
+          {
+            "address": "genesis-treasury",
+            "amount": 1000000000
+          }
+        ]
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/address/genesis-treasury/summary": {
+      "ok": true,
+      "data": {
+        "address": "genesis-treasury",
+        "confirmed_balance": 1000000000,
+        "confirmed_utxo_count": 1,
+        "pending_incoming": 0,
+        "pending_outgoing": 0,
+        "pending_net": 0,
+        "mempool_tx_count": 0,
+        "mempool_txids": [],
+        "mempool_explicit": true
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/address/genesis-treasury/activity?limit=20&offset=0": {
+      "ok": true,
+      "data": {
+        "address": "genesis-treasury",
+        "count": 1,
+        "total": 1,
+        "limit": 20,
+        "offset": 0,
+        "has_more": false,
+        "activity": [
+          {
+            "txid": "bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08",
+            "direction": "incoming",
+            "incoming": 1000000000,
+            "outgoing": 0,
+            "net": 1000000000,
+            "context": "confirmed",
+            "is_mempool": false,
+            "is_confirmed": true,
+            "block_hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+            "block_height": 0
+          }
+        ]
+      },
+      "error": null,
+      "meta": {}
+    },
     "/api/v1/search/0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047": {
       "ok": true,
       "data": {
@@ -143,6 +209,34 @@
         "address": null,
         "block_height": 0,
         "status": "confirmed"
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/search/bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08": {
+      "ok": true,
+      "data": {
+        "query": "bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08",
+        "kind": "transaction",
+        "found": true,
+        "hash": "bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08",
+        "address": null,
+        "block_height": 0,
+        "status": "confirmed"
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/search/genesis-treasury": {
+      "ok": true,
+      "data": {
+        "query": "genesis-treasury",
+        "kind": "address",
+        "found": true,
+        "hash": null,
+        "address": "genesis-treasury",
+        "block_height": null,
+        "status": "known"
       },
       "error": null,
       "meta": {}

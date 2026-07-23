@@ -10,7 +10,11 @@ A read-only explorer for the PulseDAG v2.3.0 private-testnet node API. The UI ca
 - PoW cadence and health from `GET /api/v1/pow/health`
 - Recent DAG blocks from `GET /api/v1/blocks/recent`
 - Block overview and parent hashes from `GET /api/v1/blocks/:hash/overview`
+- Transaction status, confirmations, inputs and outputs from `GET /api/v1/txs/:txid/lookup`
+- Address balances and pending state from `GET /api/v1/address/:address/summary`
+- Paginated confirmed and mempool address activity from `GET /api/v1/address/:address/activity`
 - Search for block hashes, transaction IDs and known addresses through `GET /api/v1/search/:query`
+- Linked navigation from transaction to block/address and from address activity to transaction/block
 - Polling, timeout handling, degraded-state warnings and explicit live/mock mode
 - Dark and light themes with a responsive layout
 
@@ -23,7 +27,7 @@ npm install
 npm run dev
 ```
 
-Without environment configuration, the explorer starts in deterministic mock mode.
+Without environment configuration, the explorer starts in deterministic mock mode. Transaction and address details require a live read-only RPC connection.
 
 ## Connect a local PulseDAG v2.3.0 node
 
@@ -48,7 +52,7 @@ PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 
 ## RPC contract fixture
 
-`fixtures/rpc/v2.3.0-readonly.json` contains response fields captured from an isolated live run of the exact approved PulseDAG v2.3.0 Linux candidate. Its provenance records the candidate SHA, workflow run, artifact ID and GitHub Actions artifact digest, and CI validates those bindings together with the response contract.
+`fixtures/rpc/v2.3.0-readonly.json` contains response fields captured from an isolated live run of the exact approved PulseDAG v2.3.0 Linux candidate. Its provenance records the candidate SHA, workflow run, artifact ID and GitHub Actions artifact digest, and CI validates those bindings together with one linked block → transaction → address → activity contract.
 
 Run the contract check directly with:
 
@@ -68,7 +72,7 @@ With a PulseDAG v2.3.0 node already running on a loopback or private address:
 PULSEDAG_RPC_BASE_URL=http://127.0.0.1:8080/api/v1 npm run smoke:live
 ```
 
-The smoke test checks status, recent blocks, synchronization, mempool, PoW health, linked block overview, exact block search and the stable not-found search response. It does not call write, wallet, mining or admin endpoints.
+The smoke test checks status, recent blocks, synchronization, mempool, PoW health, linked block overview, transaction lookup, address summary and activity, exact block/transaction/address searches, and the stable not-found response. It does not call write, wallet, mining or admin endpoints.
 
 ## Production read-only gateway
 
@@ -82,9 +86,12 @@ The allowlist contains:
 - sync status
 - mempool status
 - PoW health
+- exact transaction lookup
+- bounded address summary
+- bounded address activity with pagination query preservation
 - exact search queries
 
-Every other `/rpc/` request returns 404. The configuration also sets a content security policy, framing protection, `nosniff`, no-referrer and a restrictive permissions policy.
+Every other `/rpc/` request returns 404. Transaction IDs are restricted to bounded hexadecimal paths, address paths use a bounded safe character set, and the configuration also sets a content security policy, framing protection, `nosniff`, no-referrer and a restrictive permissions policy.
 
 Validate the gateway policy with:
 

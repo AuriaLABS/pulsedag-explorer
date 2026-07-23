@@ -58,6 +58,58 @@ export interface SearchResult {
   status: string | null
 }
 
+export interface TransactionOutpoint {
+  txid: string
+  index: number
+}
+
+export interface TransactionOutput {
+  address: string
+  amount: number
+}
+
+export interface TransactionDetail {
+  txid: string
+  status: string
+  isMempool: boolean
+  isConfirmed: boolean
+  fee: number
+  nonce: number
+  blockHash: string | null
+  blockHeight: number | null
+  confirmations: number | null
+  inputs: TransactionOutpoint[]
+  outputs: TransactionOutput[]
+}
+
+export interface AddressActivityItem {
+  txid: string
+  direction: string
+  incoming: number
+  outgoing: number
+  net: number
+  context: string
+  isMempool: boolean
+  isConfirmed: boolean
+  blockHash: string | null
+  blockHeight: number | null
+}
+
+export interface AddressDetail {
+  address: string
+  confirmedBalance: number
+  confirmedUtxoCount: number
+  pendingIncoming: number
+  pendingOutgoing: number
+  pendingNet: number
+  mempoolTxCount: number
+  mempoolTxids: string[]
+  mempoolExplicit: boolean
+  activity: AddressActivityItem[]
+  activityTotal: number
+  activityHasMore: boolean
+}
+
 export interface ExplorerSnapshot {
   stats: NetworkStats
   events: DagEvent[]

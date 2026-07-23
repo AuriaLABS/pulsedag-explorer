@@ -34,6 +34,7 @@ export interface DagEvent {
   height: number
   blueScore: number
   txids?: string[]
+  childHashes?: string[]
   confirmations?: number | null
   isTip?: boolean | null
 }
@@ -48,6 +49,23 @@ export interface PageState {
 
 export interface BlockPage extends PageState {
   blocks: DagEvent[]
+}
+
+export interface BlockTransactionItem {
+  txid: string
+  fee: number
+  inputs: number
+  outputs: number
+  context: string
+  isConfirmed: boolean
+  isMempool: boolean
+}
+
+export interface BlockTransactionPage extends PageState {
+  blockHash: string
+  blockHeight: number
+  context: string
+  transactions: BlockTransactionItem[]
 }
 
 export interface NodeInfo {

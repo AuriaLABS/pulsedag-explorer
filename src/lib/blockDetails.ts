@@ -14,6 +14,7 @@ interface BlockOverviewData {
   blue_score: number
   timestamp: number
   parent_hashes: string[]
+  child_hashes: string[]
   tx_count: number
   txids: string[]
   confirmations: number
@@ -85,6 +86,7 @@ export const blockDetailsApi = {
       height: block.height,
       blueScore: block.blue_score,
       txids: block.txids,
+      childHashes: block.child_hashes,
       confirmations: block.confirmations,
       isTip: block.is_tip,
     }

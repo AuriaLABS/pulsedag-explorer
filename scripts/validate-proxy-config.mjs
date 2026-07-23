@@ -18,6 +18,9 @@ const expectedProxyTargets = new Set([
   '/api/v1/sync/status',
   '/api/v1/mempool',
   '/api/v1/pow/health',
+  '/api/v1/txs/$1/lookup',
+  '/api/v1/address/$1/summary',
+  '/api/v1/address/$1/activity$is_args$args',
   '/api/v1/search/$1'
 ])
 
@@ -47,6 +50,10 @@ for (const fragment of forbiddenFragments) {
   assert(!proxyTargets.some((target) => target.includes(fragment)), `write or operator route is exposed: ${fragment}`)
 }
 
+assert(config.includes('location ~ ^/rpc/api/v1/txs/([0-9A-Fa-f]{16,128})/lookup$'), 'transaction lookup must require a bounded hexadecimal txid')
+assert(config.includes('location ~ ^/rpc/api/v1/address/([A-Za-z0-9._:-]{1,256})/summary$'), 'address summary must use a bounded safe path alphabet')
+assert(config.includes('location ~ ^/rpc/api/v1/address/([A-Za-z0-9._:-]{1,256})/activity$'), 'address activity must use a bounded safe path alphabet')
+assert(config.includes('/activity$is_args$args'), 'address activity query pagination must be preserved')
 assert(config.includes('location ^~ /rpc/'), 'catch-all /rpc/ location is required')
 assert(/location \^~ \/rpc\/\s*\{\s*return 404;/m.test(config), 'unknown RPC routes must return 404')
 assert(!config.includes('proxy_pass http://pulsedag_rpc;'), 'broad upstream proxying is forbidden')

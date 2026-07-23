@@ -1,8 +1,18 @@
-import { type ChangeEvent, type CSSProperties, type FormEvent, type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type ChangeEvent, type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { BlockDetails } from './components/BlockDetails'
 import { DagGraph } from './components/DagGraph'
 import { AddressDetails, TransactionDetails } from './components/EntityDetails'
 import { MetricCard } from './components/MetricCard'
 import { explorerApi } from './lib/api'
+import { blockDetailsApi } from './lib/blockDetails'
+import {
+  explorerRouteHeading,
+  explorerRoutePath,
+  explorerRouteTitle,
+  parseExplorerRoute,
+  type DashboardView,
+  type ExplorerRoute,
+} from './lib/routes'
 import type { AddressDetail, DagEvent, ExplorerSnapshot, SearchResult, TransactionDetail } from './types'
 
 const number = new Intl.NumberFormat('en-US')
@@ -16,17 +26,18 @@ function App() {
   const [selectedEvent, setSelectedEvent] = useState<DagEvent | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetail | null>(null)
   const [selectedAddress, setSelectedAddress] = useState<AddressDetail | null>(null)
-  const [selectedSearchResult, setSelectedSearchResult] = useState<SearchResult | null>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [searchMessage, setSearchMessage] = useState('')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-  const [activeView, setActiveView] = useState<'overview' | 'blocks' | 'node'>('overview')
+  const [route, setRoute] = useState<ExplorerRoute>(() => parseExplorerRoute(window.location.pathname))
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
+  const [detailError, setDetailError] = useState('')
+  const [copyMessage, setCopyMessage] = useState('Copy link')
 
   const loadSnapshot = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true)
@@ -53,10 +64,60 @@ function App() {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
+  useEffect(() => {
+    const handlePopState = () => setRoute(parseExplorerRoute(window.location.pathname))
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  useEffect(() => {
+    document.title = explorerRouteTitle(route)
+  }, [route])
+
+  useEffect(() => {
+    let cancelled = false
+
+    setSelectedEvent(null)
+    setSelectedTransaction(null)
+    setSelectedAddress(null)
+    setDetailError('')
+    setCopyMessage('Copy link')
+
+    if (route.kind === 'dashboard' || route.kind === 'not-found') {
+      setDetailLoading(false)
+      return () => { cancelled = true }
+    }
+
+    setDetailLoading(true)
+    const loadEntity = async () => {
+      try {
+        if (route.kind === 'block') {
+          const block = await blockDetailsApi.getBlock(route.id)
+          if (!block) throw new Error('The requested block was not found')
+          if (!cancelled) setSelectedEvent(block)
+        } else if (route.kind === 'transaction') {
+          const transaction = await explorerApi.getTransaction(route.id)
+          if (!cancelled) setSelectedTransaction(transaction)
+        } else {
+          const address = await explorerApi.getAddress(route.id)
+          if (!cancelled) setSelectedAddress(address)
+        }
+      } catch (loadError) {
+        if (!cancelled) setDetailError(readableError(loadError))
+      } finally {
+        if (!cancelled) setDetailLoading(false)
+      }
+    }
+
+    void loadEntity()
+    return () => { cancelled = true }
+  }, [route])
+
   const stats = snapshot?.stats
   const events = snapshot?.events ?? []
   const nodes = snapshot?.nodes ?? []
   const latestEvent = events[0]
+  const dashboardView = route.kind === 'dashboard' ? route.view : null
   const connectionLabel = snapshot?.mode === 'live' ? 'Live node RPC' : 'Deterministic mock'
   const lastUpdated = snapshot
     ? new Date(snapshot.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -64,17 +125,37 @@ function App() {
   const isHealthy = !error && !stats?.rpcDegraded
   const syncLabel = stats?.syncState || (loading ? 'connecting' : 'unknown')
   const pollSeconds = Math.round(explorerApi.pollIntervalMs / 1_000)
+  const isEntityRoute = route.kind === 'block' || route.kind === 'transaction' || route.kind === 'address'
 
   const networkSummary = useMemo(() => {
     if (!stats) return 'Waiting for node data'
     return `${stats.chainId} · ${stats.consensusMode}`
   }, [stats])
 
-  function clearDetails() {
-    setSelectedEvent(null)
-    setSelectedTransaction(null)
-    setSelectedAddress(null)
-    setSelectedSearchResult(null)
+  function goTo(nextRoute: ExplorerRoute, replace = false) {
+    const path = explorerRoutePath(nextRoute)
+    if (replace) window.history.replaceState({ pulsedag: true }, '', path)
+    else window.history.pushState({ pulsedag: true }, '', path)
+    setRoute(nextRoute)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function goToDashboard(view: DashboardView) {
+    goTo({ kind: 'dashboard', view })
+  }
+
+  function leaveEntityPage() {
+    if (window.history.state?.pulsedag) window.history.back()
+    else goToDashboard('overview')
+  }
+
+  async function copyCurrentLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopyMessage('Link copied')
+    } catch {
+      setCopyMessage('Copy unavailable')
+    }
   }
 
   async function handleSearch(event: FormEvent) {
@@ -93,105 +174,42 @@ function App() {
     }
   }
 
-  async function openEvent(event: DagEvent) {
-    clearDetails()
-    setSelectedEvent(event)
-    if (event.parents.length > 0) return
-
-    setDetailLoading(true)
-    try {
-      const detailed = await explorerApi.getBlockOverview(event.id)
-      if (detailed) setSelectedEvent(detailed)
-    } catch (detailError) {
-      setError(readableError(detailError))
-    } finally {
-      setDetailLoading(false)
-    }
+  function openBlock(hash: string) {
+    goTo({ kind: 'block', id: hash })
   }
 
-  async function openBlock(hash: string) {
-    const existing = events.find((event) => event.id === hash)
-    if (existing) {
-      await openEvent(existing)
-      return
-    }
-
-    setDetailLoading(true)
-    try {
-      const detailed = await explorerApi.getBlockOverview(hash)
-      if (detailed) {
-        clearDetails()
-        setSelectedEvent(detailed)
-      }
-    } catch (detailError) {
-      setError(readableError(detailError))
-    } finally {
-      setDetailLoading(false)
-    }
+  function openTransaction(txid: string) {
+    goTo({ kind: 'transaction', id: txid })
   }
 
-  async function openTransaction(txid: string) {
-    setDetailLoading(true)
-    try {
-      const transaction = await explorerApi.getTransaction(txid)
-      clearDetails()
-      setSelectedTransaction(transaction)
-    } catch (detailError) {
-      setError(readableError(detailError))
-    } finally {
-      setDetailLoading(false)
-    }
+  function openAddress(address: string) {
+    goTo({ kind: 'address', id: address })
   }
 
-  async function openAddress(address: string) {
-    setDetailLoading(true)
-    try {
-      const detail = await explorerApi.getAddress(address)
-      clearDetails()
-      setSelectedAddress(detail)
-    } catch (detailError) {
-      setError(readableError(detailError))
-    } finally {
-      setDetailLoading(false)
-    }
-  }
-
-  async function openSearchResult(result: SearchResult) {
+  function openSearchResult(result: SearchResult) {
     setResults([])
     setSearchMessage('')
-    setSelectedSearchResult(result)
-
-    if (result.kind === 'block') {
-      await openBlock(result.id)
-      return
-    }
-    if (result.kind === 'transaction') {
-      await openTransaction(result.id)
-      return
-    }
-    if (result.kind === 'address') {
-      await openAddress(result.id)
-    }
+    if (result.kind === 'block') openBlock(result.id)
+    else if (result.kind === 'transaction') openTransaction(result.id)
+    else openAddress(result.id)
   }
 
-  function closeDrawer() {
-    clearDetails()
+  function retryEntityRoute() {
+    setRoute(parseExplorerRoute(window.location.pathname))
   }
-
-  const drawerOpen = Boolean(selectedEvent || selectedTransaction || selectedAddress || selectedSearchResult)
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <button className="brand" onClick={() => setActiveView('overview')} aria-label="PulseDAG home">
+        <button className="brand" onClick={() => goToDashboard('overview')} aria-label="PulseDAG home">
           <span className="brand-mark"><i /><i /><i /></span>
           <span><strong>PulseDAG</strong><small>EXPLORER</small></span>
         </button>
 
         <nav aria-label="Explorer navigation">
-          <button className={activeView === 'overview' ? 'active' : ''} onClick={() => setActiveView('overview')}><span>⌁</span>Overview</button>
-          <button className={activeView === 'blocks' ? 'active' : ''} onClick={() => setActiveView('blocks')}><span>◇</span>DAG blocks</button>
-          <button className={activeView === 'node' ? 'active' : ''} onClick={() => setActiveView('node')}><span>◉</span>Node health</button>
+          <button className={dashboardView === 'overview' ? 'active' : ''} onClick={() => goToDashboard('overview')}><span>⌁</span>Overview</button>
+          <button className={dashboardView === 'blocks' ? 'active' : ''} onClick={() => goToDashboard('blocks')}><span>◇</span>DAG blocks</button>
+          <button className={dashboardView === 'node' ? 'active' : ''} onClick={() => goToDashboard('node')}><span>◉</span>Node health</button>
         </nav>
 
         <div className="sidebar-footer">
@@ -205,7 +223,7 @@ function App() {
         <header className="topbar">
           <div>
             <span className="eyebrow">Private-testnet intelligence</span>
-            <h1>{activeView === 'overview' ? 'Overview' : activeView === 'blocks' ? 'DAG blocks' : 'Node health'}</h1>
+            <h1>{explorerRouteHeading(route)}</h1>
           </div>
           <div className="topbar-actions">
             <span className={`sync-pill ${isHealthy ? '' : 'warning'}`}><i />{syncLabel} · {lastUpdated}</span>
@@ -244,7 +262,7 @@ function App() {
             {(results.length > 0 || searchMessage) && (
               <div className="search-results">
                 {results.map((result) => (
-                  <button type="button" key={`${result.kind}-${result.id}`} onClick={() => void openSearchResult(result)}>
+                  <button type="button" key={`${result.kind}-${result.id}`} onClick={() => openSearchResult(result)}>
                     <strong>{result.title}</strong><small>{result.kind} · {result.subtitle}</small>
                   </button>
                 ))}
@@ -254,9 +272,9 @@ function App() {
           </form>
         </section>
 
-        {loading && !snapshot && <section className="panel loading-panel">Connecting to PulseDAG…</section>}
+        {loading && !snapshot && dashboardView && <section className="panel loading-panel">Connecting to PulseDAG…</section>}
 
-        {activeView === 'overview' && snapshot && (
+        {dashboardView === 'overview' && snapshot && (
           <>
             <section className="metrics-grid">
               <MetricCard label="DAG height" value={number.format(stats?.dagHeight ?? 0)} detail={`${number.format(stats?.blockCount ?? 0)} accepted blocks`} />
@@ -271,7 +289,7 @@ function App() {
                   <div><span className="eyebrow">Observed topology</span><h3>Recent accepted blocks</h3></div>
                   <span className="live-label"><i />Polling {pollSeconds}s</span>
                 </div>
-                <DagGraph events={events} onSelect={(event) => void openEvent(event)} />
+                <DagGraph events={events} onSelect={(event) => openBlock(event.id)} />
                 <div className="dag-legend"><span><i className="accepted" />Accepted</span><span>{latestEvent ? `Head ${latestEvent.shortId}` : 'No blocks returned'}</span><span>Click a vertex to inspect</span></div>
               </article>
 
@@ -287,17 +305,17 @@ function App() {
           </>
         )}
 
-        {(activeView === 'overview' || activeView === 'blocks') && snapshot && (
+        {(dashboardView === 'overview' || dashboardView === 'blocks') && snapshot && (
           <section className="panel table-panel">
             <div className="panel-header">
               <div><span className="eyebrow">Ledger feed</span><h3>Latest blocks</h3></div>
-              <button className="text-button" onClick={() => setActiveView('blocks')}>View blocks →</button>
+              <button className="text-button" onClick={() => goToDashboard('blocks')}>View blocks →</button>
             </div>
             <div className="table-scroll">
               <table>
                 <thead><tr><th>Block</th><th>Height</th><th>Age</th><th>Transactions</th><th>Blue score</th><th>Parents</th><th>Status</th></tr></thead>
                 <tbody>{events.map((event) => (
-                  <tr key={event.id} onClick={() => void openEvent(event)}>
+                  <tr key={event.id} onClick={() => openBlock(event.id)}>
                     <td><span className="hash">{event.shortId}</span></td>
                     <td>{number.format(event.height)}</td>
                     <td>{event.age}</td>
@@ -313,7 +331,7 @@ function App() {
           </section>
         )}
 
-        {activeView === 'node' && snapshot && (
+        {dashboardView === 'node' && snapshot && (
           <section className="nodes-grid">
             {nodes.map((node) => (
               <article className="panel node-card" key={node.id}>
@@ -333,55 +351,45 @@ function App() {
             ))}
           </section>
         )}
-      </main>
 
-      {drawerOpen && (
-        <div className="drawer-backdrop" onClick={closeDrawer}>
-          <aside className="detail-drawer" onClick={(event: MouseEvent<HTMLElement>) => event.stopPropagation()}>
-            <button className="drawer-close" onClick={closeDrawer} aria-label="Close details">×</button>
-            {detailLoading && <p className="drawer-loading">Loading linked RPC details…</p>}
-            {selectedEvent ? (
-              <>
-                <span className="eyebrow">DAG block</span><h2>{selectedEvent.shortId}</h2>
-                <span className={`status status-${selectedEvent.status}`}><i />{selectedEvent.status}</span>
-                <dl>
-                  <div><dt>Full hash</dt><dd className="wrap-hash">{selectedEvent.id}</dd></div>
-                  <div><dt>Height</dt><dd>{number.format(selectedEvent.height)}</dd></div>
-                  <div><dt>Blue score</dt><dd>{number.format(selectedEvent.blueScore)}</dd></div>
-                  <div><dt>Timestamp</dt><dd>{new Date(selectedEvent.timestamp).toLocaleString()}</dd></div>
-                  <div><dt>Transactions</dt><dd>{selectedEvent.transactions}</dd></div>
-                  <div><dt>Parents</dt><dd>{selectedEvent.parents.length > 0 ? selectedEvent.parents.map((parent) => <span className="parent-hash" key={parent}>{parent}</span>) : `${selectedEvent.parentCount} parent reference(s)`}</dd></div>
-                </dl>
-              </>
-            ) : selectedTransaction ? (
-              <TransactionDetails
-                transaction={selectedTransaction}
-                onOpenTransaction={(txid) => void openTransaction(txid)}
-                onOpenAddress={(address) => void openAddress(address)}
-                onOpenBlock={(hash) => void openBlock(hash)}
-              />
-            ) : selectedAddress ? (
-              <AddressDetails
-                address={selectedAddress}
-                onOpenTransaction={(txid) => void openTransaction(txid)}
-                onOpenAddress={(address) => void openAddress(address)}
-                onOpenBlock={(hash) => void openBlock(hash)}
-              />
-            ) : selectedSearchResult ? (
-              <>
-                <span className="eyebrow">Search result</span><h2>{selectedSearchResult.kind}</h2>
-                <span className="status status-accepted"><i />{selectedSearchResult.status ?? 'known'}</span>
-                <dl>
-                  <div><dt>Identifier</dt><dd className="wrap-hash">{selectedSearchResult.id}</dd></div>
-                  <div><dt>Kind</dt><dd>{selectedSearchResult.kind}</dd></div>
-                  <div><dt>Block height</dt><dd>{selectedSearchResult.blockHeight === null ? '—' : number.format(selectedSearchResult.blockHeight)}</dd></div>
-                  <div><dt>RPC summary</dt><dd>{selectedSearchResult.subtitle}</dd></div>
-                </dl>
-              </>
-            ) : null}
-          </aside>
-        </div>
-      )}
+        {isEntityRoute && (
+          <section className="entity-page">
+            <div className="entity-page-toolbar">
+              <button className="entity-page-action" onClick={leaveEntityPage}>← Back to explorer</button>
+              <span className="entity-route-path">{explorerRoutePath(route)}</span>
+              <button className="entity-page-action" onClick={() => void copyCurrentLink()}>{copyMessage}</button>
+            </div>
+            <article className="panel entity-page-card">
+              {detailLoading && <p className="entity-page-loading">Loading linked RPC details…</p>}
+              {detailError && (
+                <div className="entity-page-error" role="alert">
+                  <strong>Unable to load this entity</strong>
+                  <span>{detailError}</span>
+                  <button onClick={retryEntityRoute}>Retry</button>
+                </div>
+              )}
+              {!detailLoading && !detailError && selectedEvent && (
+                <BlockDetails block={selectedEvent} onOpenBlock={openBlock} onOpenTransaction={openTransaction} />
+              )}
+              {!detailLoading && !detailError && selectedTransaction && (
+                <TransactionDetails transaction={selectedTransaction} onOpenTransaction={openTransaction} onOpenAddress={openAddress} onOpenBlock={openBlock} />
+              )}
+              {!detailLoading && !detailError && selectedAddress && (
+                <AddressDetails address={selectedAddress} onOpenTransaction={openTransaction} onOpenAddress={openAddress} onOpenBlock={openBlock} />
+              )}
+            </article>
+          </section>
+        )}
+
+        {route.kind === 'not-found' && (
+          <section className="panel not-found-panel">
+            <span className="eyebrow">Unknown explorer route</span>
+            <h2>Nothing exists at this URL.</h2>
+            <p className="wrap-hash">{route.path}</p>
+            <button className="entity-page-action" onClick={() => goToDashboard('overview')}>Return to overview</button>
+          </section>
+        )}
+      </main>
     </div>
   )
 }

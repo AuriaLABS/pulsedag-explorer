@@ -58,9 +58,31 @@ npm run validate:fixtures
 
 When a PulseDAG response field used by the explorer changes, update the adapter and the fixture together. The fixture is a compatibility guard, not evidence that a public testnet is live.
 
+## Production read-only gateway
+
+`deploy/nginx/pulsedag-explorer.conf` serves the built single-page application and proxies only the RPC routes used by the explorer. Its upstream name is `pulsedagd:8080`; adapt that service name to the deployment network without widening the route list.
+
+The allowlist contains:
+
+- status
+- recent blocks
+- one block overview
+- sync status
+- mempool status
+- PoW health
+- exact search queries
+
+Every other `/rpc/` request returns 404. The configuration also sets a content security policy, framing protection, `nosniff`, no-referrer and a restrictive permissions policy.
+
+Validate the gateway policy with:
+
+```bash
+npm run validate:proxy
+```
+
 ## Security boundary
 
-PulseDAG operator guidance keeps node RPC bound to loopback. For production, place a same-origin reverse proxy beside the explorer and expose only the read-only routes the UI needs. Do not forward `/admin`, wallet, mining or transaction-submission routes, and do not embed an operator token in frontend environment variables.
+PulseDAG operator guidance keeps node RPC bound to loopback or a private service network. Do not expose `pulsedagd` directly to browsers. Do not forward `/admin`, wallet, mining, transaction-submission or other mutation routes, and do not embed an operator token in frontend environment variables.
 
 This project represents the private-testnet baseline. It does not claim that public testnet is live and does not start or backdate the 30-day public-testnet clock.
 
@@ -68,6 +90,7 @@ This project represents the private-testnet baseline. It does not claim that pub
 
 ```bash
 npm run validate:fixtures
+npm run validate:proxy
 npm run typecheck
 npm run build
 ```

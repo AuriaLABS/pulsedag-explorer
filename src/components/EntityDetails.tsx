@@ -1,4 +1,5 @@
 import type { AddressDetail, TransactionDetail } from '../types'
+import { PaginationControls } from './PaginationControls'
 
 const number = new Intl.NumberFormat('en-US')
 
@@ -14,6 +15,8 @@ interface TransactionDetailsProps extends EntityNavigationProps {
 
 interface AddressDetailsProps extends EntityNavigationProps {
   address: AddressDetail
+  onActivityPageChange: (limit: number, offset: number) => void
+  pageLoading?: boolean
 }
 
 function amount(value: number): string {
@@ -93,6 +96,8 @@ export function AddressDetails({
   address,
   onOpenBlock,
   onOpenTransaction,
+  onActivityPageChange,
+  pageLoading = false,
 }: AddressDetailsProps) {
   return (
     <>
@@ -120,7 +125,7 @@ export function AddressDetails({
           <strong>{number.format(address.activityTotal)}</strong>
         </div>
         {address.activity.length === 0 ? (
-          <p className="entity-empty">No confirmed or mempool activity returned.</p>
+          <p className="entity-empty">No confirmed or mempool activity was returned for this page.</p>
         ) : (
           <div className="entity-list">
             {address.activity.map((item) => (
@@ -143,7 +148,16 @@ export function AddressDetails({
             ))}
           </div>
         )}
-        {address.activityHasMore && <p className="entity-empty">More activity is available through the paginated RPC.</p>}
+        <PaginationControls
+          count={address.activityCount}
+          total={address.activityTotal}
+          limit={address.activityLimit}
+          offset={address.activityOffset}
+          hasMore={address.activityHasMore}
+          label="Address activity"
+          disabled={pageLoading}
+          onChange={onActivityPageChange}
+        />
       </section>
     </>
   )

@@ -38,6 +38,18 @@ export interface DagEvent {
   isTip?: boolean | null
 }
 
+export interface PageState {
+  count: number
+  total: number
+  limit: number
+  offset: number
+  hasMore: boolean
+}
+
+export interface BlockPage extends PageState {
+  blocks: DagEvent[]
+}
+
 export interface NodeInfo {
   id: string
   label: string
@@ -109,7 +121,10 @@ export interface AddressDetail {
   mempoolTxids: string[]
   mempoolExplicit: boolean
   activity: AddressActivityItem[]
+  activityCount: number
   activityTotal: number
+  activityLimit: number
+  activityOffset: number
   activityHasMore: boolean
 }
 

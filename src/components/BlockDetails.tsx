@@ -27,6 +27,7 @@ export function BlockDetails({ block, onOpenBlock, onOpenTransaction }: BlockDet
   const [page, setPage] = useState<BlockTransactionPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [retryToken, setRetryToken] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -39,7 +40,7 @@ export function BlockDetails({ block, onOpenBlock, onOpenTransaction }: BlockDet
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [block.id, pagination.limit, pagination.offset])
+  }, [block.id, pagination.limit, pagination.offset, retryToken])
 
   function changePage(limit: number, offset: number) {
     const next = { limit, offset }
@@ -94,7 +95,7 @@ export function BlockDetails({ block, onOpenBlock, onOpenTransaction }: BlockDet
       <section className="entity-section">
         <div className="entity-section-header"><span className="eyebrow">Transactions</span><strong>{page ? number.format(page.total) : number.format(block.transactions)}</strong></div>
         {loading && <p className="entity-empty">Loading transaction page…</p>}
-        {error && <div className="entity-page-error"><strong>Unable to load transactions</strong><span>{error}</span><button onClick={() => setPagination({ ...pagination })}>Retry</button></div>}
+        {error && <div className="entity-page-error"><strong>Unable to load transactions</strong><span>{error}</span><button onClick={() => setRetryToken((value) => value + 1)}>Retry</button></div>}
         {!loading && !error && page && page.transactions.length === 0 && <p className="entity-empty">No transactions exist on this page.</p>}
         {!loading && !error && page && page.transactions.length > 0 && (
           <div className="entity-list">{page.transactions.map((transaction) => (
@@ -104,7 +105,18 @@ export function BlockDetails({ block, onOpenBlock, onOpenTransaction }: BlockDet
             </button>
           ))}</div>
         )}
-        {page && <PaginationControls page={page} label="transactions" onPageChange={changePage} disabled={loading} />}
+        {page && (
+          <PaginationControls
+            count={page.count}
+            total={page.total}
+            limit={page.limit}
+            offset={page.offset}
+            hasMore={page.hasMore}
+            label="transactions"
+            onChange={changePage}
+            disabled={loading}
+          />
+        )}
       </section>
     </>
   )

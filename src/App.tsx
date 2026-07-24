@@ -3,9 +3,11 @@ import { BlockDetails } from './components/BlockDetails'
 import { BlocksTable } from './components/BlocksTable'
 import { DagGraph } from './components/DagGraph'
 import { AddressDetails, TransactionDetails } from './components/EntityDetails'
+import { MempoolPanel } from './components/MempoolPanel'
 import { MetricCard } from './components/MetricCard'
 import { explorerApi } from './lib/api'
 import { blockDetailsApi } from './lib/blockDetails'
+import { mempoolApi } from './lib/mempoolApi'
 import { paginationApi } from './lib/paginationApi'
 import {
   DEFAULT_PAGE_LIMIT,
@@ -16,7 +18,7 @@ import {
   type DashboardView,
   type ExplorerRoute,
 } from './lib/routes'
-import type { AddressDetail, BlockPage, DagEvent, ExplorerSnapshot, SearchResult, TransactionDetail } from './types'
+import type { AddressDetail, BlockPage, DagEvent, ExplorerSnapshot, MempoolPage, SearchResult, TransactionDetail } from './types'
 
 const number = new Intl.NumberFormat('en-US')
 
@@ -27,6 +29,7 @@ function readableError(error: unknown): string {
 function App() {
   const [snapshot, setSnapshot] = useState<ExplorerSnapshot | null>(null)
   const [blockPage, setBlockPage] = useState<BlockPage | null>(null)
+  const [mempoolPage, setMempoolPage] = useState<MempoolPage | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<DagEvent | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetail | null>(null)
   const [selectedAddress, setSelectedAddress] = useState<AddressDetail | null>(null)
@@ -39,10 +42,12 @@ function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [blockPageLoading, setBlockPageLoading] = useState(false)
+  const [mempoolPageLoading, setMempoolPageLoading] = useState(false)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
   const [detailError, setDetailError] = useState('')
   const [blockPageError, setBlockPageError] = useState('')
+  const [mempoolPageError, setMempoolPageError] = useState('')
   const [copyMessage, setCopyMessage] = useState('Copy link')
 
   const loadSnapshot = useCallback(async (silent = false) => {
@@ -92,18 +97,31 @@ function App() {
 
     setBlockPageLoading(true)
     setBlockPageError('')
-    const loadPage = async () => {
-      try {
-        const page = await paginationApi.getBlocks(route.pagination.limit, route.pagination.offset)
-        if (!cancelled) setBlockPage(page)
-      } catch (loadError) {
-        if (!cancelled) setBlockPageError(readableError(loadError))
-      } finally {
-        if (!cancelled) setBlockPageLoading(false)
-      }
+    void paginationApi.getBlocks(route.pagination.limit, route.pagination.offset)
+      .then((page) => { if (!cancelled) setBlockPage(page) })
+      .catch((loadError: unknown) => { if (!cancelled) setBlockPageError(readableError(loadError)) })
+      .finally(() => { if (!cancelled) setBlockPageLoading(false) })
+
+    return () => { cancelled = true }
+  }, [route])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (route.kind !== 'dashboard' || route.view !== 'mempool') {
+      setMempoolPage(null)
+      setMempoolPageError('')
+      setMempoolPageLoading(false)
+      return () => { cancelled = true }
     }
 
-    void loadPage()
+    setMempoolPageLoading(true)
+    setMempoolPageError('')
+    void mempoolApi.getPage(route.pagination.limit, route.pagination.offset)
+      .then((page) => { if (!cancelled) setMempoolPage(page) })
+      .catch((loadError: unknown) => { if (!cancelled) setMempoolPageError(readableError(loadError)) })
+      .finally(() => { if (!cancelled) setMempoolPageLoading(false) })
+
     return () => { cancelled = true }
   }, [route])
 
@@ -174,8 +192,8 @@ function App() {
   }
 
   function goToDashboard(view: DashboardView) {
-    if (view === 'blocks') {
-      goTo({ kind: 'dashboard', view: 'blocks', pagination: { limit: DEFAULT_PAGE_LIMIT, offset: 0 } })
+    if (view === 'blocks' || view === 'mempool') {
+      goTo({ kind: 'dashboard', view, pagination: { limit: DEFAULT_PAGE_LIMIT, offset: 0 } })
     } else {
       goTo({ kind: 'dashboard', view })
     }
@@ -235,6 +253,10 @@ function App() {
     goTo({ kind: 'dashboard', view: 'blocks', pagination: { limit, offset } })
   }
 
+  function changeMempoolPage(limit: number, offset: number) {
+    goTo({ kind: 'dashboard', view: 'mempool', pagination: { limit, offset } })
+  }
+
   function changeAddressPage(limit: number, offset: number) {
     if (route.kind !== 'address') return
     goTo({ kind: 'address', id: route.id, pagination: { limit, offset } })
@@ -245,6 +267,10 @@ function App() {
   }
 
   function retryBlockPage() {
+    setRoute(parseExplorerRoute(window.location.pathname, window.location.search))
+  }
+
+  function retryMempoolPage() {
     setRoute(parseExplorerRoute(window.location.pathname, window.location.search))
   }
 
@@ -259,6 +285,7 @@ function App() {
         <nav aria-label="Explorer navigation">
           <button className={dashboardView === 'overview' ? 'active' : ''} onClick={() => goToDashboard('overview')}><span>⌁</span>Overview</button>
           <button className={dashboardView === 'blocks' ? 'active' : ''} onClick={() => goToDashboard('blocks')}><span>◇</span>DAG blocks</button>
+          <button className={dashboardView === 'mempool' ? 'active' : ''} onClick={() => goToDashboard('mempool')}><span>≋</span>Mempool</button>
           <button className={dashboardView === 'node' ? 'active' : ''} onClick={() => goToDashboard('node')}><span>◉</span>Node health</button>
         </nav>
 
@@ -371,6 +398,17 @@ function App() {
               onRetry={dashboardView === 'blocks' ? retryBlockPage : undefined}
             />
           </section>
+        )}
+
+        {dashboardView === 'mempool' && (
+          <MempoolPanel
+            page={mempoolPage}
+            loading={mempoolPageLoading}
+            error={mempoolPageError}
+            onOpenTransaction={openTransaction}
+            onPageChange={changeMempoolPage}
+            onRetry={retryMempoolPage}
+          />
         )}
 
         {dashboardView === 'node' && snapshot && (

@@ -68,6 +68,25 @@ export interface BlockTransactionPage extends PageState {
   transactions: BlockTransactionItem[]
 }
 
+export interface MempoolTransactionItem {
+  txid: string
+  fee: number
+  inputs: number
+  outputs: number
+}
+
+export interface MempoolPage extends PageState {
+  transactionCount: number
+  orphanTransactionCount: number
+  orphanLimit: number
+  spentOutpointsCount: number
+  orphanedTotal: number
+  orphanPromotedTotal: number
+  orphanDroppedTotal: number
+  orphanPrunedTotal: number
+  transactions: MempoolTransactionItem[]
+}
+
 export interface NodeInfo {
   id: string
   label: string

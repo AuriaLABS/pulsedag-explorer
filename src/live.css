@@ -58,6 +58,16 @@ button:disabled { cursor: wait; opacity: .65; }
 .inline-page-error { margin-top: 16px; padding: 11px 12px; border: 1px solid rgba(255, 111, 145, .35); border-radius: 9px; display: flex; justify-content: space-between; gap: 12px; align-items: center; background: rgba(255, 111, 145, .06); }
 .inline-page-error span { color: var(--muted); font-size: 10px; }
 
+.mempool-layout { display: grid; gap: 16px; }
+.mempool-stats { margin-top: 0; }
+.mempool-panel { margin-top: 0; }
+.mempool-panel tbody tr { cursor: pointer; }
+.mempool-panel .hash { display: inline-block; max-width: min(520px, 48vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mempool-counters { padding: 24px; }
+.mempool-counters dl { margin-top: 8px; }
+.mempool-counters dl div { grid-template-columns: minmax(140px, .6fr) 1fr; }
+.mempool-error { min-height: 180px; padding: 22px; }
+
 .entity-page { margin-top: 16px; }
 .entity-page-toolbar { min-height: 42px; margin-bottom: 10px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .entity-page-action { border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; background: var(--surface); color: inherit; cursor: pointer; font-size: 10px; }
@@ -92,4 +102,5 @@ button:disabled { cursor: wait; opacity: .65; }
   .pagination-actions { grid-column: auto; }
   .pagination-actions button { flex: 1; }
   .pagination-size { justify-content: space-between; }
+  .mempool-panel .hash { max-width: 210px; }
 }

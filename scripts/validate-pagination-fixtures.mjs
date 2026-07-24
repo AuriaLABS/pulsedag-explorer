@@ -36,6 +36,7 @@ for (const [field, expected] of Object.entries(expectedCapture)) {
   assert(fixture.capture[field] === expected, `capture.${field} must match the approved artifact`)
 }
 assert(!Number.isNaN(Date.parse(fixture.capture.captured_at_utc)), 'capture timestamp must be valid')
+assert(fixture.capture.scope.includes('mempool'), 'capture scope must include mempool pagination')
 
 const firstBlocks = response('/api/v1/blocks/page?limit=20&offset=0')
 assert(firstBlocks.limit === 20 && firstBlocks.offset === 0, 'first block page coordinates are invalid')
@@ -57,5 +58,13 @@ assert(emptyActivity.limit === 20 && emptyActivity.offset === 1, 'activity page 
 assert(emptyActivity.count === 0 && emptyActivity.activity.length === 0, 'activity page after the only item must be empty')
 assert(emptyActivity.total === 1, 'activity total must remain stable after the last item')
 assert(emptyActivity.has_more === false, 'empty terminal activity page must not report more data')
+
+const mempoolPage = response('/api/v1/txs/page?limit=20&offset=0')
+assert(mempoolPage.limit === 20 && mempoolPage.offset === 0, 'mempool page coordinates are invalid')
+assert(Array.isArray(mempoolPage.transactions), 'mempool page transactions must be an array')
+assert(mempoolPage.count === mempoolPage.transactions.length, 'mempool page count must match transactions length')
+assert(mempoolPage.total >= mempoolPage.count, 'mempool total must cover page count')
+assert(mempoolPage.count === 0 && mempoolPage.total === 0, 'isolated capture must have an empty mempool')
+assert(mempoolPage.has_more === false, 'empty mempool page must not report more data')
 
 console.log(`Validated ${Object.keys(fixture.responses).length} live-captured PulseDAG pagination boundaries.`)

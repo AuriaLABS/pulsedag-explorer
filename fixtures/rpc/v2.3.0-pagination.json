@@ -8,8 +8,8 @@
     "artifact_id": 8505066594,
     "artifact_digest": "sha256:f52c848ff3c6476fe5496ee1bbabcb9bc41eadaed4668c96a0d81c5fefc7e92f",
     "network": "dev",
-    "captured_at_utc": "2026-07-23T16:55:49Z",
-    "scope": "bounded block and address activity pagination responses"
+    "captured_at_utc": "2026-07-24T09:27:45Z",
+    "scope": "bounded block, address activity and mempool transaction pagination responses"
   },
   "responses": {
     "/api/v1/blocks/page?limit=20&offset=0": {
@@ -57,6 +57,19 @@
         "offset": 1,
         "has_more": false,
         "activity": []
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/txs/page?limit=20&offset=0": {
+      "ok": true,
+      "data": {
+        "count": 0,
+        "total": 0,
+        "limit": 20,
+        "offset": 0,
+        "has_more": false,
+        "transactions": []
       },
       "error": null,
       "meta": {}

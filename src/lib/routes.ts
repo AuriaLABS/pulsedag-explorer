@@ -1,4 +1,4 @@
-export type DashboardView = 'overview' | 'blocks' | 'node'
+export type DashboardView = 'overview' | 'blocks' | 'mempool' | 'node'
 
 export interface PaginationRouteState {
   limit: number
@@ -10,7 +10,7 @@ export const MAX_PAGE_LIMIT = 100
 
 export type ExplorerRoute =
   | { kind: 'dashboard'; view: 'overview' | 'node' }
-  | { kind: 'dashboard'; view: 'blocks'; pagination: PaginationRouteState }
+  | { kind: 'dashboard'; view: 'blocks' | 'mempool'; pagination: PaginationRouteState }
   | { kind: 'block'; id: string }
   | { kind: 'transaction'; id: string }
   | { kind: 'address'; id: string; pagination: PaginationRouteState }
@@ -53,6 +53,7 @@ export function parseExplorerRoute(pathname: string, search = ''): ExplorerRoute
 
   if (normalized === '/') return { kind: 'dashboard', view: 'overview' }
   if (normalized === '/blocks') return { kind: 'dashboard', view: 'blocks', pagination: parsePagination(search) }
+  if (normalized === '/mempool') return { kind: 'dashboard', view: 'mempool', pagination: parsePagination(search) }
   if (normalized === '/node') return { kind: 'dashboard', view: 'node' }
 
   const segments = normalized.split('/').filter(Boolean)
@@ -72,6 +73,7 @@ export function explorerRoutePath(route: ExplorerRoute): string {
   switch (route.kind) {
     case 'dashboard':
       if (route.view === 'blocks') return `/blocks${paginationSuffix(route.pagination)}`
+      if (route.view === 'mempool') return `/mempool${paginationSuffix(route.pagination)}`
       if (route.view === 'node') return '/node'
       return '/'
     case 'block':
@@ -92,6 +94,10 @@ export function explorerRouteTitle(route: ExplorerRoute): string {
         const page = Math.floor(route.pagination.offset / route.pagination.limit) + 1
         return `DAG blocks · Page ${page} · PulseDAG Explorer`
       }
+      if (route.view === 'mempool') {
+        const page = Math.floor(route.pagination.offset / route.pagination.limit) + 1
+        return `Mempool · Page ${page} · PulseDAG Explorer`
+      }
       if (route.view === 'node') return 'Node health · PulseDAG Explorer'
       return 'Overview · PulseDAG Explorer'
     case 'block':
@@ -111,6 +117,7 @@ export function explorerRouteHeading(route: ExplorerRoute): string {
   switch (route.kind) {
     case 'dashboard':
       if (route.view === 'blocks') return 'DAG blocks'
+      if (route.view === 'mempool') return 'Mempool'
       if (route.view === 'node') return 'Node health'
       return 'Overview'
     case 'block':

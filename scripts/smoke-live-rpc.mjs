@@ -24,13 +24,14 @@ async function request(path) {
   return envelope.data
 }
 
-const [status, blocks, blockPage, terminalBlockPage, sync, mempool, pow] = await Promise.all([
+const [status, blocks, blockPage, terminalBlockPage, sync, mempool, mempoolPage, pow] = await Promise.all([
   request('/status'),
   request('/blocks/recent?limit=20'),
   request('/blocks/page?limit=20&offset=0'),
   request('/blocks/page?limit=20&offset=100'),
   request('/sync/status'),
   request('/mempool'),
+  request('/txs/page?limit=20&offset=0'),
   request('/pow/health')
 ])
 
@@ -47,11 +48,16 @@ assert(terminalBlockPage.offset === 100 && terminalBlockPage.has_more === false,
 assert(typeof sync.consistency_ok === 'boolean', 'sync consistency flag is missing')
 assert(typeof sync.lag_blocks === 'number', 'sync lag_blocks is missing')
 assert(typeof mempool.transaction_count === 'number', 'mempool transaction_count is missing')
+assert(Array.isArray(mempool.txids), 'mempool txids are missing')
+assert(Array.isArray(mempoolPage.transactions), 'mempool page transactions are missing')
+assert(mempoolPage.limit === 20 && mempoolPage.offset === 0, 'mempool page coordinates are invalid')
+assert(mempoolPage.count === mempoolPage.transactions.length, 'mempool page count does not match transaction array length')
+assert(mempoolPage.total === mempool.transaction_count, 'mempool page total does not match mempool summary')
 assert(typeof pow.status === 'string', 'PoW health status is missing')
 
 const head = blocks.blocks[0]
 assert(status.selected_tip === head.hash, 'status selected_tip does not match the first recent block')
-assert(status.best_height === head.height, 'status best_height does not match the first recent block')
+assert(status.best_height === head.height, 'status best_height does not match the first recent block height')
 assert(blockPage.blocks[0].hash === head.hash, 'first paginated block does not match the recent head block')
 
 const [overview, blockSearch, missingSearch] = await Promise.all([
@@ -121,6 +127,7 @@ console.log(JSON.stringify({
   sync_state: sync.sync_state,
   lag_blocks: sync.lag_blocks,
   mempool_transactions: mempool.transaction_count,
+  mempool_page_total: mempoolPage.total,
   pow_status: pow.status,
   pow_alerts: pow.alerts,
   result: 'pass'

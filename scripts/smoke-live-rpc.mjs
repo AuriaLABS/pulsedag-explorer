@@ -24,7 +24,7 @@ async function request(path) {
   return envelope.data
 }
 
-const [status, blocks, blockPage, terminalBlockPage, sync, mempool, mempoolPage, pow] = await Promise.all([
+const [status, blocks, blockPage, terminalBlockPage, sync, mempool, mempoolPage, transactionActivity, terminalTransactionActivity, pow] = await Promise.all([
   request('/status'),
   request('/blocks/recent?limit=20'),
   request('/blocks/page?limit=20&offset=0'),
@@ -32,6 +32,8 @@ const [status, blocks, blockPage, terminalBlockPage, sync, mempool, mempoolPage,
   request('/sync/status'),
   request('/mempool'),
   request('/txs/page?limit=20&offset=0'),
+  request('/txs/activity?limit=20&offset=0'),
+  request('/txs/activity?limit=20&offset=100'),
   request('/pow/health')
 ])
 
@@ -53,6 +55,13 @@ assert(Array.isArray(mempoolPage.transactions), 'mempool page transactions are m
 assert(mempoolPage.limit === 20 && mempoolPage.offset === 0, 'mempool page coordinates are invalid')
 assert(mempoolPage.count === mempoolPage.transactions.length, 'mempool page count does not match transaction array length')
 assert(mempoolPage.total === mempool.transaction_count, 'mempool page total does not match mempool summary')
+assert(Array.isArray(transactionActivity.transactions) && transactionActivity.transactions.length > 0, 'transaction activity returned no entries')
+assert(transactionActivity.limit === 20 && transactionActivity.offset === 0, 'transaction activity page coordinates are invalid')
+assert(transactionActivity.count === transactionActivity.transactions.length, 'transaction activity count does not match transaction array length')
+assert(transactionActivity.total >= transactionActivity.count, 'transaction activity total does not cover page count')
+assert(Array.isArray(terminalTransactionActivity.transactions) && terminalTransactionActivity.transactions.length === 0, 'terminal transaction activity page must be empty')
+assert(terminalTransactionActivity.offset === 100 && terminalTransactionActivity.has_more === false, 'terminal transaction activity boundary is invalid')
+assert(terminalTransactionActivity.total === transactionActivity.total, 'transaction activity total changed across page boundaries')
 assert(typeof pow.status === 'string', 'PoW health status is missing')
 
 const head = blocks.blocks[0]
@@ -87,6 +96,10 @@ assert(Array.isArray(transaction.inputs), 'transaction inputs are missing')
 assert(Array.isArray(transaction.outputs) && transaction.outputs.length > 0, 'transaction outputs are missing')
 assert(transactionSearch.found === true && transactionSearch.kind === 'transaction', 'exact transaction search did not resolve the transaction')
 assert(transactionSearch.hash === txid, 'exact transaction search returned a different txid')
+const activityItem = transactionActivity.transactions.find((item) => item.txid === txid)
+assert(activityItem, 'transaction activity does not contain the linked transaction')
+assert(activityItem.is_confirmed === true && activityItem.is_mempool === false, 'linked transaction activity context is invalid')
+assert(activityItem.block_hash === head.hash && activityItem.block_height === head.height, 'transaction activity links to a different block')
 
 const output = transaction.outputs[0]
 assert(typeof output.address === 'string' && output.address.length > 0, 'transaction output address is missing')
@@ -120,6 +133,7 @@ console.log(JSON.stringify({
   head_hash: head.hash,
   block_page_total: blockPage.total,
   transaction_id: txid,
+  transaction_activity_total: transactionActivity.total,
   output_address: output.address,
   confirmed_balance: addressSummary.confirmed_balance,
   address_activity_total: addressActivity.total,

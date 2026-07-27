@@ -87,6 +87,22 @@ export interface MempoolPage extends PageState {
   transactions: MempoolTransactionItem[]
 }
 
+export interface TransactionActivityItem {
+  txid: string
+  fee: number
+  inputs: number
+  outputs: number
+  context: string
+  isMempool: boolean
+  isConfirmed: boolean
+  blockHash: string | null
+  blockHeight: number | null
+}
+
+export interface TransactionActivityPage extends PageState {
+  transactions: TransactionActivityItem[]
+}
+
 export interface NodeInfo {
   id: string
   label: string

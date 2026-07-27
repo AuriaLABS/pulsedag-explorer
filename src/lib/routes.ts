@@ -1,4 +1,4 @@
-export type DashboardView = 'overview' | 'blocks' | 'mempool' | 'node'
+export type DashboardView = 'overview' | 'blocks' | 'transactions' | 'mempool' | 'node'
 
 export interface PaginationRouteState {
   limit: number
@@ -10,7 +10,7 @@ export const MAX_PAGE_LIMIT = 100
 
 export type ExplorerRoute =
   | { kind: 'dashboard'; view: 'overview' | 'node' }
-  | { kind: 'dashboard'; view: 'blocks' | 'mempool'; pagination: PaginationRouteState }
+  | { kind: 'dashboard'; view: 'blocks' | 'transactions' | 'mempool'; pagination: PaginationRouteState }
   | { kind: 'block'; id: string }
   | { kind: 'transaction'; id: string }
   | { kind: 'address'; id: string; pagination: PaginationRouteState }
@@ -53,6 +53,7 @@ export function parseExplorerRoute(pathname: string, search = ''): ExplorerRoute
 
   if (normalized === '/') return { kind: 'dashboard', view: 'overview' }
   if (normalized === '/blocks') return { kind: 'dashboard', view: 'blocks', pagination: parsePagination(search) }
+  if (normalized === '/transactions') return { kind: 'dashboard', view: 'transactions', pagination: parsePagination(search) }
   if (normalized === '/mempool') return { kind: 'dashboard', view: 'mempool', pagination: parsePagination(search) }
   if (normalized === '/node') return { kind: 'dashboard', view: 'node' }
 
@@ -73,6 +74,7 @@ export function explorerRoutePath(route: ExplorerRoute): string {
   switch (route.kind) {
     case 'dashboard':
       if (route.view === 'blocks') return `/blocks${paginationSuffix(route.pagination)}`
+      if (route.view === 'transactions') return `/transactions${paginationSuffix(route.pagination)}`
       if (route.view === 'mempool') return `/mempool${paginationSuffix(route.pagination)}`
       if (route.view === 'node') return '/node'
       return '/'
@@ -93,6 +95,10 @@ export function explorerRouteTitle(route: ExplorerRoute): string {
       if (route.view === 'blocks') {
         const page = Math.floor(route.pagination.offset / route.pagination.limit) + 1
         return `DAG blocks · Page ${page} · PulseDAG Explorer`
+      }
+      if (route.view === 'transactions') {
+        const page = Math.floor(route.pagination.offset / route.pagination.limit) + 1
+        return `Transaction activity · Page ${page} · PulseDAG Explorer`
       }
       if (route.view === 'mempool') {
         const page = Math.floor(route.pagination.offset / route.pagination.limit) + 1
@@ -117,6 +123,7 @@ export function explorerRouteHeading(route: ExplorerRoute): string {
   switch (route.kind) {
     case 'dashboard':
       if (route.view === 'blocks') return 'DAG blocks'
+      if (route.view === 'transactions') return 'Transaction activity'
       if (route.view === 'mempool') return 'Mempool'
       if (route.view === 'node') return 'Node health'
       return 'Overview'

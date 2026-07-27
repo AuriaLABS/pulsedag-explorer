@@ -20,6 +20,7 @@ const expectedProxyTargets = new Set([
   '/api/v1/sync/status',
   '/api/v1/mempool',
   '/api/v1/txs/page$is_args$args',
+  '/api/v1/txs/activity$is_args$args',
   '/api/v1/pow/health',
   '/api/v1/txs/$1/lookup',
   '/api/v1/address/$1/summary',
@@ -59,6 +60,8 @@ assert(config.includes('location ~ ^/rpc/api/v1/blocks/([0-9A-Fa-f]{16,128})/tra
 assert(config.includes('/blocks/$1/transactions$is_args$args'), 'block transaction pagination query parameters must be preserved')
 assert(config.includes('location = /rpc/api/v1/txs/page'), 'mempool transaction pagination must use an exact route')
 assert(config.includes('/txs/page$is_args$args'), 'mempool pagination query parameters must be preserved')
+assert(config.includes('location = /rpc/api/v1/txs/activity'), 'transaction activity pagination must use an exact route')
+assert(config.includes('/txs/activity$is_args$args'), 'transaction activity query parameters must be preserved')
 assert(config.includes('location ~ ^/rpc/api/v1/txs/([0-9A-Fa-f]{16,128})/lookup$'), 'transaction lookup must require a bounded hexadecimal txid')
 assert(config.includes('location ~ ^/rpc/api/v1/address/([A-Za-z0-9._:-]{1,256})/summary$'), 'address summary must use a bounded safe path alphabet')
 assert(config.includes('location ~ ^/rpc/api/v1/address/([A-Za-z0-9._:-]{1,256})/activity$'), 'address activity must use a bounded safe path alphabet')

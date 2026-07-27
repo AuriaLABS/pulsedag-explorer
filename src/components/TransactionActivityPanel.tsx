@@ -1,27 +1,44 @@
-import { PaginationControls } from './PaginationControls'
+import { useEffect, useState } from 'react'
+import { transactionActivityApi } from '../lib/transactionActivityApi'
+import type { PaginationRouteState } from '../lib/routes'
 import type { TransactionActivityPage } from '../types'
+import { PaginationControls } from './PaginationControls'
 
 const number = new Intl.NumberFormat('en-US')
 
 interface TransactionActivityPanelProps {
-  page: TransactionActivityPage | null
-  loading: boolean
-  error: string
+  pagination: PaginationRouteState
   onOpenTransaction: (txid: string) => void
   onOpenBlock: (hash: string) => void
   onPageChange: (limit: number, offset: number) => void
-  onRetry: () => void
 }
 
 export function TransactionActivityPanel({
-  page,
-  loading,
-  error,
+  pagination,
   onOpenTransaction,
   onOpenBlock,
   onPageChange,
-  onRetry,
 }: TransactionActivityPanelProps) {
+  const [page, setPage] = useState<TransactionActivityPage | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [retryToken, setRetryToken] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError('')
+
+    void transactionActivityApi.getPage(pagination.limit, pagination.offset)
+      .then((nextPage) => { if (!cancelled) setPage(nextPage) })
+      .catch((loadError: unknown) => {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Unable to load transaction activity')
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+
+    return () => { cancelled = true }
+  }, [pagination.limit, pagination.offset, retryToken])
+
   const pendingOnPage = page?.transactions.filter((transaction) => transaction.isMempool).length ?? 0
   const confirmedOnPage = page?.transactions.filter((transaction) => transaction.isConfirmed).length ?? 0
   const pageNumber = page ? Math.floor(page.offset / page.limit) + 1 : null
@@ -46,7 +63,7 @@ export function TransactionActivityPanel({
           <div className="entity-page-error transaction-activity-error" role="alert">
             <strong>Unable to load transaction activity</strong>
             <span>{error}</span>
-            <button onClick={onRetry}>Retry</button>
+            <button onClick={() => setRetryToken((value) => value + 1)}>Retry</button>
           </div>
         )}
 

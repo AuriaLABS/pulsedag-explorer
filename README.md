@@ -8,6 +8,7 @@ A read-only explorer for the PulseDAG v2.3.0 private-testnet node API. The UI ca
 - Sync and convergence state from `GET /api/v1/sync/status`
 - Mempool counters from `GET /api/v1/mempool`
 - Paginated mempool transactions from `GET /api/v1/txs/page`
+- Paginated global pending and confirmed transaction activity from `GET /api/v1/txs/activity`
 - PoW cadence and health from `GET /api/v1/pow/health`
 - Recent DAG blocks from `GET /api/v1/blocks/recent`
 - Paginated DAG history from `GET /api/v1/blocks/page`
@@ -18,7 +19,7 @@ A read-only explorer for the PulseDAG v2.3.0 private-testnet node API. The UI ca
 - Paginated confirmed and mempool address activity from `GET /api/v1/address/:address/activity`
 - Search for block hashes, transaction IDs and known addresses through `GET /api/v1/search/:query`
 - Linked navigation across blocks, child and parent blocks, transactions and addresses
-- Shareable browser routes and pagination state for blocks, mempool transactions and addresses
+- Shareable browser routes and pagination state for blocks, global transaction activity, mempool transactions and addresses
 - Polling, timeout handling, degraded-state warnings and explicit live/mock mode
 - Dark and light themes with a responsive layout
 
@@ -31,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Without environment configuration, the explorer starts in deterministic mock mode. Transaction and address details require a live read-only RPC connection. The mempool view returns an empty deterministic page in mock mode.
+Without environment configuration, the explorer starts in deterministic mock mode. Transaction and address details require a live read-only RPC connection. The transaction activity and mempool views return empty deterministic pages in mock mode.
 
 ## Connect a local PulseDAG v2.3.0 node
 
@@ -62,6 +63,8 @@ The explorer uses the browser History API without adding a client-side routing d
 /                                      overview
 /blocks                                first block page
 /blocks?limit=50&offset=100            paginated DAG history
+/transactions                          first global transaction activity page
+/transactions?limit=50&offset=100      paginated pending and confirmed activity
 /mempool                               first mempool transaction page
 /mempool?limit=50&offset=100           paginated mempool transactions
 /node                                  node health
@@ -85,7 +88,7 @@ These browser routes do not expose RPC directly. Entity data still passes only t
 
 `fixtures/rpc/v2.3.0-readonly.json` contains response fields captured from an isolated live run of the exact approved PulseDAG v2.3.0 Linux candidate. Its provenance records the candidate SHA, workflow run, artifact ID and GitHub Actions artifact digest, and CI validates those bindings together with one linked block → transaction → address → activity contract.
 
-`fixtures/rpc/v2.3.0-pagination.json` records pagination boundaries for block history, address activity and the mempool transaction page from the same approved binary.
+`fixtures/rpc/v2.3.0-pagination.json` records pagination boundaries for block history, address activity, mempool transactions and global transaction activity from the same approved binary.
 
 Run the contract checks directly with:
 
@@ -106,7 +109,7 @@ With a PulseDAG v2.3.0 node already running on a loopback or private address:
 PULSEDAG_RPC_BASE_URL=http://127.0.0.1:8080/api/v1 npm run smoke:live
 ```
 
-The smoke test checks status, recent and paginated blocks, synchronization, mempool summary and transaction page, PoW health, linked block overview, transaction lookup, address summary and paginated activity, exact block/transaction/address searches, terminal page boundaries and the stable not-found response. It does not call write, wallet, mining or admin endpoints.
+The smoke test checks status, recent and paginated blocks, synchronization, mempool summary and transaction page, global transaction activity and its terminal boundary, PoW health, linked block overview, transaction lookup, address summary and paginated activity, exact block/transaction/address searches and the stable not-found response. It does not call write, wallet, mining or admin endpoints.
 
 ## Production read-only gateway
 
@@ -122,6 +125,7 @@ The allowlist contains:
 - sync status
 - mempool status
 - exact mempool transaction pagination with query preservation
+- exact global transaction activity pagination with query preservation
 - PoW health
 - exact transaction lookup
 - bounded address summary

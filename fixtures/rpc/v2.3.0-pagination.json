@@ -8,8 +8,8 @@
     "artifact_id": 8505066594,
     "artifact_digest": "sha256:f52c848ff3c6476fe5496ee1bbabcb9bc41eadaed4668c96a0d81c5fefc7e92f",
     "network": "dev",
-    "captured_at_utc": "2026-07-24T09:27:45Z",
-    "scope": "bounded block, address activity and mempool transaction pagination responses"
+    "captured_at_utc": "2026-07-27T09:11:12Z",
+    "scope": "bounded block, address, mempool and global transaction activity pagination responses"
   },
   "responses": {
     "/api/v1/blocks/page?limit=20&offset=0": {
@@ -68,6 +68,44 @@
         "total": 0,
         "limit": 20,
         "offset": 0,
+        "has_more": false,
+        "transactions": []
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/txs/activity?limit=20&offset=0": {
+      "ok": true,
+      "data": {
+        "count": 1,
+        "total": 1,
+        "limit": 20,
+        "offset": 0,
+        "has_more": false,
+        "transactions": [
+          {
+            "txid": "bfab773bc5ccf4326249fc6951f4dd3eccca2918ec4e063b0ee767a22c557f08",
+            "fee": 0,
+            "inputs": 0,
+            "outputs": 1,
+            "context": "confirmed",
+            "is_mempool": false,
+            "is_confirmed": true,
+            "block_hash": "0828edfca48b1a43e407c4d9d7f63650552d9b86587f2565eba0c05977484047",
+            "block_height": 0
+          }
+        ]
+      },
+      "error": null,
+      "meta": {}
+    },
+    "/api/v1/txs/activity?limit=20&offset=20": {
+      "ok": true,
+      "data": {
+        "count": 0,
+        "total": 1,
+        "limit": 20,
+        "offset": 20,
         "has_more": false,
         "transactions": []
       },

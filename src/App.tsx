@@ -5,6 +5,7 @@ import { DagGraph } from './components/DagGraph'
 import { AddressDetails, TransactionDetails } from './components/EntityDetails'
 import { MempoolPanel } from './components/MempoolPanel'
 import { MetricCard } from './components/MetricCard'
+import { TransactionActivityPanel } from './components/TransactionActivityPanel'
 import { explorerApi } from './lib/api'
 import { blockDetailsApi } from './lib/blockDetails'
 import { mempoolApi } from './lib/mempoolApi'
@@ -192,7 +193,7 @@ function App() {
   }
 
   function goToDashboard(view: DashboardView) {
-    if (view === 'blocks' || view === 'mempool') {
+    if (view === 'blocks' || view === 'transactions' || view === 'mempool') {
       goTo({ kind: 'dashboard', view, pagination: { limit: DEFAULT_PAGE_LIMIT, offset: 0 } })
     } else {
       goTo({ kind: 'dashboard', view })
@@ -253,6 +254,10 @@ function App() {
     goTo({ kind: 'dashboard', view: 'blocks', pagination: { limit, offset } })
   }
 
+  function changeTransactionPage(limit: number, offset: number) {
+    goTo({ kind: 'dashboard', view: 'transactions', pagination: { limit, offset } })
+  }
+
   function changeMempoolPage(limit: number, offset: number) {
     goTo({ kind: 'dashboard', view: 'mempool', pagination: { limit, offset } })
   }
@@ -285,6 +290,7 @@ function App() {
         <nav aria-label="Explorer navigation">
           <button className={dashboardView === 'overview' ? 'active' : ''} onClick={() => goToDashboard('overview')}><span>⌁</span>Overview</button>
           <button className={dashboardView === 'blocks' ? 'active' : ''} onClick={() => goToDashboard('blocks')}><span>◇</span>DAG blocks</button>
+          <button className={dashboardView === 'transactions' ? 'active' : ''} onClick={() => goToDashboard('transactions')}><span>↯</span>Transactions</button>
           <button className={dashboardView === 'mempool' ? 'active' : ''} onClick={() => goToDashboard('mempool')}><span>≋</span>Mempool</button>
           <button className={dashboardView === 'node' ? 'active' : ''} onClick={() => goToDashboard('node')}><span>◉</span>Node health</button>
         </nav>
@@ -398,6 +404,15 @@ function App() {
               onRetry={dashboardView === 'blocks' ? retryBlockPage : undefined}
             />
           </section>
+        )}
+
+        {dashboardView === 'transactions' && route.kind === 'dashboard' && route.view === 'transactions' && (
+          <TransactionActivityPanel
+            pagination={route.pagination}
+            onOpenTransaction={openTransaction}
+            onOpenBlock={openBlock}
+            onPageChange={changeTransactionPage}
+          />
         )}
 
         {dashboardView === 'mempool' && (

@@ -276,6 +276,16 @@ function releaseMajor(version: string): string {
 }
 
 function assertLiveIdentity(status: NodeStatusData, release: ReleaseInfoData): boolean {
+  if (!status.version?.trim() || !status.chain_id?.trim()) {
+    throw new PulseDagApiError('PulseDAG /status omitted required release or chain identity fields', 'STATUS_IDENTITY_MISSING')
+  }
+  if (!release.version?.trim() || !release.network_profile?.trim() || !release.chain_id?.trim()) {
+    throw new PulseDagApiError('PulseDAG /release omitted required network identity fields', 'RELEASE_IDENTITY_MISSING')
+  }
+  if (!Array.isArray(release.capabilities)) {
+    throw new PulseDagApiError('PulseDAG /release omitted the capabilities list', 'RELEASE_CAPABILITIES_MISSING')
+  }
+
   if (status.chain_id !== release.chain_id) {
     throw new PulseDagApiError(
       `PulseDAG identity mismatch: /status reports chain ${status.chain_id} but /release reports ${release.chain_id}`,
@@ -318,6 +328,7 @@ function assertLiveIdentity(status: NodeStatusData, release: ReleaseInfoData): b
   if (requireContractsDisabled) {
     const releaseSaysDisabled =
       release.capabilities.includes('contracts_disabled') &&
+      typeof release.smart_contracts === 'string' &&
       release.smart_contracts.toLowerCase().startsWith('disabled')
     if (status.contracts_enabled !== false || !releaseSaysDisabled) {
       throw new PulseDagApiError(

@@ -9,6 +9,9 @@ The explorer is read-only. It must not become a source of provisional consensus,
 - The browser uses the stable `/api/v1` namespace.
 - `GET /api/v1/status` is required for live mode.
 - `GET /api/v1/release` is required for live mode and is exposed through the deny-by-default gateway allowlist.
+- PulseDAG v3 additionally requires `GET /api/v1/policy`; the explorer consumes `monetary_v3` as downstream metadata and never originates monetary constants.
+- v3 monetary atom/Q64 fields are accepted only as decimal integer strings so browser number precision cannot silently change consensus-facing values.
+- An optional `VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT` deployment pin fails closed on a policy mismatch.
 - Status and release chain IDs must agree.
 - Status and release versions must agree.
 - The node must advertise the `explorer_api` capability.
@@ -32,6 +35,8 @@ PulseDAG launch task #1049 owns the freeze for the independent mainnet and paral
 
 The explorer environment leaves expected network profile and chain ID empty for this reason.
 
+PulseDAG #1045 separately owns the production monetary-policy freeze. `VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT` also remains blank in the repository until the exact #1045 candidate is accepted and evidence-bound. The explorer may display policy metadata before that pin exists, but it reports the policy as verified-not-pinned and does not treat it as launch authority.
+
 ## Mainnet deployment gate
 
 A production deployment may be labelled mainnet only when all of the following are true:
@@ -41,8 +46,10 @@ A production deployment may be labelled mainnet only when all of the following a
 - `VITE_EXPECTED_RELEASE_MAJOR=3`.
 - `VITE_EXPECTED_NETWORK_PROFILE` equals the frozen mainnet profile.
 - `VITE_EXPECTED_CHAIN_ID` equals the frozen mainnet chain ID.
+- `VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT` equals the final fingerprint frozen by PulseDAG #1045.
 - `VITE_REQUIRE_CONTRACTS_DISABLED=true`.
-- The connected `/status` and `/release` responses pass the identity guard.
+- The connected `/status`, `/release` and v3 `/policy` responses pass the identity and monetary-policy guards.
+- If production monetary cadence is reported frozen, its cadence fingerprint must be a valid 32-byte hex identity.
 - The gateway exposes only the reviewed read-only explorer surface.
 - Exact-candidate RPC fixtures and pagination fixtures have been captured and validated.
 - The live smoke test passes against the frozen candidate.
@@ -52,7 +59,7 @@ A production deployment may be labelled mainnet only when all of the following a
 ## Remaining implementation work
 
 1. Capture exact v3.0 read-only and pagination fixtures once the launch candidate exists.
-2. Extend fixture validation to include release identity, contract inactivity and any finalized v3 API fields.
+2. Extend fixture validation to include release identity, contract inactivity, the exact v3 monetary-policy fingerprint and finalized v3 API fields.
 3. Add exact-candidate smoke evidence for mainnet and parallel testnet independently.
 4. Add production deployment manifests for the chosen hosting/runtime environment without exposing node admin, wallet, mining or mutation routes.
 5. Pin final public RPC/gateway origin and CSP/CORS/TLS policy only after the launch infrastructure is frozen.

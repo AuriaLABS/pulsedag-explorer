@@ -463,6 +463,13 @@ function App() {
                   <div><dt>Network profile</dt><dd>{stats?.networkProfile ?? 'unknown'}</dd></div>
                   <div><dt>Identity guard</dt><dd>{stats?.identityPinned ? 'pinned' : 'verified, not pinned'}</dd></div>
                   <div><dt>Smart contracts</dt><dd>{stats?.contractsEnabled ? 'active' : 'inactive'}</dd></div>
+                  <div><dt>Monetary policy</dt><dd className="wrap-hash">{stats?.monetaryPolicyFingerprint ?? 'not exposed'}</dd></div>
+                  <div><dt>Monetary pin</dt><dd>{stats?.monetaryPolicyPinned ? 'pinned' : stats?.monetaryPolicyFingerprint ? 'verified, not pinned' : 'not applicable'}</dd></div>
+                  <div><dt>Supply cap</dt><dd>{stats?.maxSupplyAtoms ? `${stats.maxSupplyAtoms} atoms` : '—'}</dd></div>
+                  <div><dt>Half-life</dt><dd>{stats?.monetaryHalfLifeYears ? `${stats.monetaryHalfLifeYears} years` : '—'}</dd></div>
+                  <div><dt>Emission quantum</dt><dd>{stats?.monetaryEmissionQuantumSeconds ? `${stats.monetaryEmissionQuantumSeconds}s` : '—'}</dd></div>
+                  <div><dt>Terminal year</dt><dd>{stats?.monetaryTerminalEconomicYear ?? '—'}</dd></div>
+                  <div><dt>Cadence freeze</dt><dd>{stats?.monetaryProductionCadenceFrozen ? 'frozen' : 'pending'}</dd></div>
                   <div><dt>RPC round trip</dt><dd>{node.latencyMs} ms</dd></div>
                   <div><dt>Best height</dt><dd>{number.format(node.bestHeight)}</dd></div>
                   <div><dt>Connected peers</dt><dd>{node.peerCount}</dd></div>

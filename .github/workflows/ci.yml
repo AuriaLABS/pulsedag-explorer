@@ -29,5 +29,7 @@ jobs:
       - run: bash scripts/validate-nginx-runtime.sh
       - run: npm run validate:v3-readiness
       - run: node --check scripts/smoke-live-rpc.mjs
+      - run: npm run validate:load-harness
+      - run: node --check scripts/load-live-rpc.mjs
       - run: npm run typecheck
       - run: npm run build

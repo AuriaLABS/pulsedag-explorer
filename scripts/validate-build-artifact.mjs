@@ -21,7 +21,8 @@ for (const fragment of [
   "gzip -n",
   "sha256sum",
   "provenance.txt",
-  "commit_sha=",
+  "source_sha=",
+  "workflow_sha=",
   "workflow_run_id=",
 ]) {
   assert(pack.includes(fragment), `artifact packager is missing: ${fragment}`)
@@ -39,6 +40,14 @@ for (const forbidden of [
 assert(
   ci.includes('uses: actions/upload-artifact@v4'),
   'CI must upload the checksummed build bundle',
+)
+assert(
+  ci.includes('PULSEDAG_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}'),
+  'CI must bind provenance to the reviewed PR head SHA or pushed commit SHA',
+)
+assert(
+  ci.includes('name: pulsedag-explorer-${{ github.event.pull_request.head.sha || github.sha }}'),
+  'artifact name must use the reviewed source SHA rather than a pull-request merge ref',
 )
 for (const glob of [
   'artifacts/*.tar.gz',

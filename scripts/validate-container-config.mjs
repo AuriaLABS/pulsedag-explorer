@@ -20,14 +20,23 @@ for (const fragment of [
   'FROM ${NODE_IMAGE} AS build',
   'FROM ${NGINX_IMAGE} AS runtime',
   'RUN npm run build',
-  'COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html',
-  'COPY --chown=nginx:nginx deploy/nginx/pulsedag-explorer.conf /etc/nginx/conf.d/default.conf',
+  'COPY --from=build /app/dist /usr/share/nginx/html',
+  'COPY deploy/nginx/pulsedag-explorer.conf /etc/nginx/conf.d/default.conf',
   'USER nginx',
   'EXPOSE 8080',
   'http://127.0.0.1:8080/healthz',
 ]) {
   assert(dockerfile.includes(fragment), `Dockerfile is missing: ${fragment}`)
 }
+
+assert(
+  !dockerfile.includes('COPY --chown=nginx:nginx deploy/nginx/pulsedag-explorer.conf'),
+  'runtime nginx configuration must remain root-owned',
+)
+assert(
+  !dockerfile.includes('COPY --from=build --chown=nginx:nginx /app/dist'),
+  'compiled static assets must remain root-owned',
+)
 
 for (const key of [
   'VITE_EXPECTED_RELEASE_MAJOR',

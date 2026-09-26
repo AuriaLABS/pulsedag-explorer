@@ -22,7 +22,7 @@ A read-only explorer being prepared for PulseDAG v3.0.0 and the coordinated main
 - Search for block hashes, transaction IDs and known addresses through `GET /api/v1/search/:query`
 - Linked navigation across blocks, child and parent blocks, transactions and addresses
 - Shareable browser routes and pagination state for blocks, global transaction activity, mempool transactions and addresses
-- Polling, timeout handling, degraded-state warnings and explicit live/mock mode
+- Polling, bounded transient RPC retries, timeout handling, degraded-state warnings and explicit live/mock mode
 - Dark and light themes with a responsive layout
 
 The explorer deliberately avoids wallet, mining, mutation and admin endpoints.
@@ -52,6 +52,9 @@ Relevant values:
 VITE_DATA_MODE=live
 VITE_API_BASE_URL=/rpc
 VITE_POLL_INTERVAL_MS=15000
+VITE_RPC_TIMEOUT_MS=5000
+VITE_RPC_MAX_RETRIES=1
+VITE_RPC_RETRY_BASE_MS=300
 
 # Pin these only to identities frozen by the PulseDAG launch controls.
 VITE_EXPECTED_RELEASE_MAJOR=
@@ -63,6 +66,8 @@ PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 ```
 
 `VITE_API_BASE_URL` may also point at a browser-accessible read-only gateway. It can be either the gateway root or a URL ending in `/api/v1`.
+
+Transient read failures use bounded retries only. The default is one retry after a 300 ms base backoff, with a 5 s request timeout and a 5 s maximum retry delay. The retry count is clamped to at most two. Timeouts, network failures and selected transient HTTP statuses can retry; malformed responses, identity mismatches, incompatible releases/capabilities and smart-contract-boundary failures fail immediately.
 
 ## v3.0 / mainnet identity guard
 

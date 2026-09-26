@@ -459,7 +459,12 @@ function assertV3MonetaryPolicy(
     )
   }
 
-  if (!monetary.policy_version?.trim() || !/^[0-9a-f]{64}$/i.test(monetary.policy_fingerprint)) {
+  if (
+    typeof monetary.policy_version !== 'string' ||
+    !monetary.policy_version.trim() ||
+    typeof monetary.policy_fingerprint !== 'string' ||
+    !/^[0-9a-f]{64}$/i.test(monetary.policy_fingerprint)
+  ) {
     throw new PulseDagApiError(
       'PulseDAG v3 monetary policy identity is malformed',
       'MONETARY_POLICY_IDENTITY_INVALID',
@@ -475,7 +480,7 @@ function assertV3MonetaryPolicy(
     ['half_life_end_factor_q64', monetary.half_life_end_factor_q64],
     ['tail_emission_atoms', monetary.tail_emission_atoms],
   ] as const) {
-    if (!/^\d+$/.test(value)) {
+    if (typeof value !== 'string' || !/^\d+$/.test(value)) {
       throw new PulseDagApiError(
         `PulseDAG v3 monetary field ${name} must remain an integer string`,
         'MONETARY_VALUE_ENCODING_INVALID',
@@ -485,9 +490,18 @@ function assertV3MonetaryPolicy(
 
   if (
     monetary.programmable_resource_fees_active !== false ||
+    typeof monetary.production_cadence_frozen !== 'boolean' ||
+    typeof monetary.symbol !== 'string' ||
+    !monetary.symbol.trim() ||
     !Number.isInteger(monetary.decimals) ||
     monetary.decimals < 0 ||
-    monetary.decimals > 18
+    monetary.decimals > 18 ||
+    !Number.isSafeInteger(monetary.half_life_years) ||
+    monetary.half_life_years <= 0 ||
+    !Number.isSafeInteger(monetary.emission_quantum_seconds) ||
+    monetary.emission_quantum_seconds <= 0 ||
+    !Number.isSafeInteger(monetary.terminal_economic_year) ||
+    monetary.terminal_economic_year <= 0
   ) {
     throw new PulseDagApiError(
       'PulseDAG v3 monetary policy is incompatible with the read-only launch boundary',
@@ -497,7 +511,10 @@ function assertV3MonetaryPolicy(
 
   if (
     monetary.production_cadence_frozen &&
-    !/^[0-9a-f]{64}$/i.test(monetary.production_cadence_fingerprint ?? '')
+    (
+      typeof monetary.production_cadence_fingerprint !== 'string' ||
+      !/^[0-9a-f]{64}$/i.test(monetary.production_cadence_fingerprint)
+    )
   ) {
     throw new PulseDagApiError(
       'PulseDAG v3 reports a frozen production cadence without a valid cadence fingerprint',

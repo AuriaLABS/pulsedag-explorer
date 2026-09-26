@@ -12,7 +12,8 @@
     "validate:pagination": "node scripts/validate-pagination-fixtures.mjs",
     "validate:proxy": "node scripts/validate-proxy-config.mjs",
     "validate:v3-readiness": "node scripts/validate-v3-readiness.mjs",
-    "smoke:live": "node scripts/smoke-live-rpc.mjs"
+    "smoke:live": "node scripts/smoke-live-rpc.mjs",
+    "validate:container": "node scripts/validate-container-config.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

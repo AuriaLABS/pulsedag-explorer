@@ -39,37 +39,7 @@ for (const [key, expected] of [
   ['VITE_RPC_RETRY_BASE_MS', '300'],
 ]) {
   assert(
-    new RegExp(`^${key}=${expected}import { readFileSync } from 'node:fs'
-
-function read(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
-}
-
-function fail(message) {
-  throw new Error(`v3 readiness validation failed: ${message}`)
-}
-
-function assert(condition, message) {
-  if (!condition) fail(message)
-}
-
-const env = read('.env.example')
-const api = read('src/lib/api.ts')
-const app = read('src/App.tsx')
-const nginx = read('deploy/nginx/pulsedag-explorer.conf')
-const docs = read('docs/V3_MAINNET_READINESS.md')
-
-for (const key of [
-  'VITE_EXPECTED_RELEASE_MAJOR',
-  'VITE_EXPECTED_NETWORK_PROFILE',
-  'VITE_EXPECTED_CHAIN_ID',
-]) {
-  const match = env.match(new RegExp(`^${key}=(.*)$`, 'm'))
-  assert(match, `.env.example is missing ${key}`)
-  assert(match[1].trim() === '', `${key} must stay blank in the repository until the upstream identity freeze`)
-}
-
-, 'm').test(env),
+    new RegExp(`^${key}=${expected}$`, 'm').test(env),
     `${key} must keep the reviewed bounded-resilience default ${expected}`,
   )
 }

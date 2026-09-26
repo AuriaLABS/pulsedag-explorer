@@ -28,6 +28,7 @@ jobs:
           fi
       - run: bash scripts/validate-nginx-runtime.sh
       - run: npm run validate:v3-readiness
+      - run: npm run validate:artifact
       - run: node --check scripts/smoke-live-rpc.mjs
       - run: npm run typecheck
       - run: npm run build

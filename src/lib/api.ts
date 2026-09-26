@@ -168,6 +168,21 @@ const pollIntervalMs = Number.isFinite(configuredPollInterval)
   ? Math.min(60_000, Math.max(5_000, configuredPollInterval))
   : 15_000
 
+const configuredRpcTimeout = Number(import.meta.env.VITE_RPC_TIMEOUT_MS || 5_000)
+const rpcTimeoutMs = Number.isFinite(configuredRpcTimeout)
+  ? Math.min(15_000, Math.max(1_000, Math.round(configuredRpcTimeout)))
+  : 5_000
+const configuredRpcMaxRetries = Number(import.meta.env.VITE_RPC_MAX_RETRIES || 1)
+const rpcMaxRetries = Number.isFinite(configuredRpcMaxRetries)
+  ? Math.min(2, Math.max(0, Math.floor(configuredRpcMaxRetries)))
+  : 1
+const configuredRpcRetryBase = Number(import.meta.env.VITE_RPC_RETRY_BASE_MS || 300)
+const rpcRetryBaseMs = Number.isFinite(configuredRpcRetryBase)
+  ? Math.min(2_000, Math.max(100, Math.round(configuredRpcRetryBase)))
+  : 300
+const maxRetryDelayMs = 5_000
+const transientHttpStatuses = new Set([408, 425, 429, 500, 502, 503, 504])
+
 const expectedReleaseMajor = import.meta.env.VITE_EXPECTED_RELEASE_MAJOR?.trim().replace(/^v/i, '') || ''
 const expectedNetworkProfile = import.meta.env.VITE_EXPECTED_NETWORK_PROFILE?.trim() || ''
 const expectedChainId = import.meta.env.VITE_EXPECTED_CHAIN_ID?.trim() || ''
@@ -177,14 +192,34 @@ class PulseDagApiError extends Error {
   constructor(
     message: string,
     readonly code = 'REQUEST_FAILED',
+    readonly retryable = false,
+    readonly retryAfterMs: number | null = null,
   ) {
     super(message)
   }
 }
 
-async function request<T>(path: string): Promise<T> {
+function parseRetryAfterMs(response: Response): number | null {
+  const value = response.headers.get('Retry-After')?.trim()
+  if (!value) return null
+
+  const seconds = Number(value)
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(maxRetryDelayMs, Math.round(seconds * 1_000))
+  }
+
+  const retryAt = Date.parse(value)
+  if (!Number.isFinite(retryAt)) return null
+  return Math.min(maxRetryDelayMs, Math.max(0, retryAt - Date.now()))
+}
+
+function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, delayMs))
+}
+
+async function requestAttempt<T>(path: string): Promise<T> {
   const controller = new AbortController()
-  const timeoutId = window.setTimeout(() => controller.abort(), 5_000)
+  const timeoutId = window.setTimeout(() => controller.abort(), rpcTimeoutMs)
 
   try {
     const response = await fetch(`${apiRoot}${path}`, {
@@ -193,7 +228,13 @@ async function request<T>(path: string): Promise<T> {
     })
 
     if (!response.ok) {
-      throw new PulseDagApiError(`PulseDAG RPC returned HTTP ${response.status}`, `HTTP_${response.status}`)
+      const retryable = transientHttpStatuses.has(response.status)
+      throw new PulseDagApiError(
+        `PulseDAG RPC returned HTTP ${response.status}`,
+        `HTTP_${response.status}`,
+        retryable,
+        retryable ? parseRetryAfterMs(response) : null,
+      )
     }
 
     const envelope = (await response.json()) as ApiEnvelope<T>
@@ -205,12 +246,40 @@ async function request<T>(path: string): Promise<T> {
     }
     return envelope.data
   } catch (error) {
+    if (error instanceof PulseDagApiError) throw error
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new PulseDagApiError('PulseDAG RPC request timed out', 'TIMEOUT')
+      throw new PulseDagApiError('PulseDAG RPC request timed out', 'TIMEOUT', true)
+    }
+    if (error instanceof TypeError) {
+      throw new PulseDagApiError('PulseDAG RPC network request failed', 'NETWORK_ERROR', true)
     }
     throw error
   } finally {
     window.clearTimeout(timeoutId)
+  }
+}
+
+async function request<T>(path: string): Promise<T> {
+  let retryCount = 0
+
+  while (true) {
+    try {
+      return await requestAttempt<T>(path)
+    } catch (error) {
+      const canRetry =
+        error instanceof PulseDagApiError &&
+        error.retryable &&
+        retryCount < rpcMaxRetries
+      if (!canRetry) throw error
+
+      const exponentialDelay = rpcRetryBaseMs * (2 ** retryCount)
+      const retryDelay = Math.min(
+        maxRetryDelayMs,
+        Math.max(exponentialDelay, error.retryAfterMs ?? 0),
+      )
+      retryCount += 1
+      await sleep(retryDelay)
+    }
   }
 }
 

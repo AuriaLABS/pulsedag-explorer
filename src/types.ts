@@ -21,6 +21,16 @@ export interface NetworkStats {
   consensusMode: string
   contractsEnabled: boolean
   identityPinned: boolean
+  monetaryPolicyVersion: string | null
+  monetaryPolicyFingerprint: string | null
+  monetaryPolicyPinned: boolean
+  monetarySymbol: string | null
+  monetaryDecimals: number | null
+  maxSupplyAtoms: string | null
+  monetaryHalfLifeYears: number | null
+  monetaryEmissionQuantumSeconds: number | null
+  monetaryTerminalEconomicYear: number | null
+  monetaryProductionCadenceFrozen: boolean
   snapshotHeight: number | null
   rpcDegraded: boolean
   powStatus: string

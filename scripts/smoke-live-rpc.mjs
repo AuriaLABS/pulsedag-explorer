@@ -85,8 +85,18 @@ if (release.version.replace(/^v/i, '').split('.')[0] === '3') {
   }
   if (expectedMonetaryPolicyFingerprint) {
     assert(
+      /^[0-9a-f]{64}$/.test(expectedMonetaryPolicyFingerprint),
+      'configured monetary-policy fingerprint pin is malformed'
+    )
+    assert(
       monetary.policy_fingerprint.toLowerCase() === expectedMonetaryPolicyFingerprint,
       `expected monetary policy ${expectedMonetaryPolicyFingerprint}, received ${monetary.policy_fingerprint}`
+    )
+  }
+  if (expectedReleaseMajor && expectedNetworkProfile && expectedChainId && expectedMonetaryPolicyFingerprint) {
+    assert(
+      monetary.production_cadence_frozen === true,
+      'pinned v3 production deployment requires frozen monetary cadence'
     )
   }
 }

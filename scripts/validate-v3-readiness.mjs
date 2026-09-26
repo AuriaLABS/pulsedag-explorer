@@ -80,8 +80,12 @@ assert(
   'production gateway must expose exact read-only /api/v1/release',
 )
 assert(
-  /location \^~ \/rpc\/\s*\{\s*return 404;/m.test(nginx),
+  /location \/rpc\/\s*\{\s*return 404;/m.test(nginx),
   'production gateway must keep deny-by-default RPC fallback',
+)
+assert(
+  !nginx.includes('location ^~ /rpc/'),
+  'deny-by-default RPC fallback must not shadow regex allowlist routes with ^~',
 )
 
 for (const fragment of [

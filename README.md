@@ -178,6 +178,7 @@ This project is being migrated from its v2.3 private-testnet baseline toward v3.
 npm run validate:fixtures
 npm run validate:pagination
 npm run validate:proxy
+npm run validate:v3-readiness
 npm run typecheck
 npm run build
 ```

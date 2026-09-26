@@ -1,10 +1,12 @@
 # PulseDAG Explorer
 
-A read-only explorer for the PulseDAG v2.3.0 private-testnet node API. The UI can run against deterministic mock data or poll the stable RPC contract exposed by `pulsedagd`.
+A read-only explorer being prepared for PulseDAG v3.0.0 and the coordinated mainnet + parallel-testnet launch. The UI can run against deterministic mock data or poll the stable `/api/v1` RPC contract exposed by `pulsedagd`. It does not infer or invent mainnet identity values before the PulseDAG launch controls freeze them.
 
 ## Current capabilities
 
 - Real node status from `GET /api/v1/status`
+- Release/network identity metadata from `GET /api/v1/release`
+- Fail-closed checks for release major, network profile, chain ID and inactive smart-contract state
 - Sync and convergence state from `GET /api/v1/sync/status`
 - Mempool counters from `GET /api/v1/mempool`
 - Paginated mempool transactions from `GET /api/v1/txs/page`
@@ -34,7 +36,7 @@ npm run dev
 
 Without environment configuration, the explorer starts in deterministic mock mode. Transaction and address details require a live read-only RPC connection. The transaction activity and mempool views return empty deterministic pages in mock mode.
 
-## Connect a local PulseDAG v2.3.0 node
+## Connect a local PulseDAG node
 
 ```bash
 cp .env.example .env.local
@@ -50,10 +52,33 @@ Relevant values:
 VITE_DATA_MODE=live
 VITE_API_BASE_URL=/rpc
 VITE_POLL_INTERVAL_MS=15000
+
+# Pin these only to identities frozen by the PulseDAG launch controls.
+VITE_EXPECTED_RELEASE_MAJOR=
+VITE_EXPECTED_NETWORK_PROFILE=
+VITE_EXPECTED_CHAIN_ID=
+VITE_REQUIRE_CONTRACTS_DISABLED=true
+
 PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 ```
 
 `VITE_API_BASE_URL` may also point at a browser-accessible read-only gateway. It can be either the gateway root or a URL ending in `/api/v1`.
+
+## v3.0 / mainnet identity guard
+
+Live mode reads both `/api/v1/status` and `/api/v1/release` before presenting the node as healthy. It rejects the connection when those endpoints disagree on release/chain identity, when the node does not advertise `explorer_api`, or when the v3.0 inactive-contract boundary is not proven.
+
+The three expected identity variables are intentionally blank in `.env.example` while PulseDAG #1049 / Task31 has not frozen the independent mainnet and parallel-testnet identities. A production mainnet deployment must set all of:
+
+- `VITE_EXPECTED_RELEASE_MAJOR=3`
+- `VITE_EXPECTED_NETWORK_PROFILE=<frozen mainnet network profile>`
+- `VITE_EXPECTED_CHAIN_ID=<frozen mainnet chain id>`
+
+Until all three values are pinned, the UI displays the reported network identity but marks it as **verified, not pinned**. This prevents the explorer repository from becoming an accidental source of provisional mainnet constants.
+
+`VITE_REQUIRE_CONTRACTS_DISABLED=true` is the v3.0 launch default. The explorer fails closed if `/status` reports contracts enabled or `/release` does not advertise the disabled-contract capability/state required by the v3.0 launch program.
+
+See `docs/V3_MAINNET_READINESS.md` for the remaining exact-candidate and deployment gates.
 
 ## Shareable explorer routes
 
@@ -86,9 +111,9 @@ These browser routes do not expose RPC directly. Entity data still passes only t
 
 ## RPC contract fixtures
 
-`fixtures/rpc/v2.3.0-readonly.json` contains response fields captured from an isolated live run of the exact approved PulseDAG v2.3.0 Linux candidate. Its provenance records the candidate SHA, workflow run, artifact ID and GitHub Actions artifact digest, and CI validates those bindings together with one linked block → transaction → address → activity contract.
+`fixtures/rpc/v2.3.0-readonly.json` remains the historical compatibility baseline captured from the exact approved PulseDAG v2.3.0 Linux candidate. Its provenance records the candidate SHA, workflow run, artifact ID and GitHub Actions artifact digest, and CI validates those bindings together with one linked block → transaction → address → activity contract.
 
-`fixtures/rpc/v2.3.0-pagination.json` records pagination boundaries for block history, address activity, mempool transactions and global transaction activity from the same approved binary.
+`fixtures/rpc/v2.3.0-pagination.json` remains the historical pagination baseline from the same approved binary. Exact v3.0 fixtures must be captured from the frozen launch candidate before mainnet readiness is claimed.
 
 Run the contract checks directly with:
 
@@ -103,7 +128,7 @@ The full capture procedure and safety boundary are recorded in `docs/LIVE_RPC_VA
 
 ## Live RPC smoke test
 
-With a PulseDAG v2.3.0 node already running on a loopback or private address:
+With a compatible PulseDAG node already running on a loopback or private address:
 
 ```bash
 PULSEDAG_RPC_BASE_URL=http://127.0.0.1:8080/api/v1 npm run smoke:live
@@ -118,6 +143,7 @@ The smoke test checks status, recent and paginated blocks, synchronization, memp
 The allowlist contains:
 
 - status
+- release/network identity metadata
 - recent blocks
 - bounded block pagination with query preservation
 - one block overview
@@ -144,7 +170,7 @@ npm run validate:proxy
 
 PulseDAG operator guidance keeps node RPC bound to loopback or a private service network. Do not expose `pulsedagd` directly to browsers. Do not forward `/admin`, wallet, mining, transaction-submission or other mutation routes, and do not embed an operator token in frontend environment variables.
 
-This project represents the private-testnet baseline. It does not claim that public testnet is live and does not start or backdate the 30-day public-testnet clock.
+This project is being migrated from its v2.3 private-testnet baseline toward v3.0/mainnet readiness. It does not claim that public testnet or mainnet is live, does not freeze network identities on behalf of PulseDAG #1049, and does not start or backdate any launch/burn-in clock.
 
 ## Validation
 
@@ -156,4 +182,4 @@ npm run typecheck
 npm run build
 ```
 
-For a separately running v2.3.0 node, also run `npm run smoke:live` with `PULSEDAG_RPC_BASE_URL` set to its stable `/api/v1` prefix.
+For a separately running compatible node, also run `npm run smoke:live` with `PULSEDAG_RPC_BASE_URL` set to its stable `/api/v1` prefix. Before the mainnet launch, capture and validate exact v3.0 fixtures from the frozen candidate and pinned network identity.

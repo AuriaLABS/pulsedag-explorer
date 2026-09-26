@@ -506,10 +506,32 @@ function assertV3MonetaryPolicy(
   }
 
   const fingerprint = monetary.policy_fingerprint.toLowerCase()
+  if (
+    expectedMonetaryPolicyFingerprint &&
+    !/^[0-9a-f]{64}$/.test(expectedMonetaryPolicyFingerprint)
+  ) {
+    throw new PulseDagApiError(
+      'Configured monetary-policy fingerprint pin is malformed',
+      'MONETARY_POLICY_PIN_INVALID',
+    )
+  }
   if (expectedMonetaryPolicyFingerprint && fingerprint !== expectedMonetaryPolicyFingerprint) {
     throw new PulseDagApiError(
       `Expected monetary policy ${expectedMonetaryPolicyFingerprint}, received ${fingerprint}`,
       'MONETARY_POLICY_FINGERPRINT_MISMATCH',
+    )
+  }
+
+  const productionPinsComplete = Boolean(
+    expectedReleaseMajor &&
+    expectedNetworkProfile &&
+    expectedChainId &&
+    expectedMonetaryPolicyFingerprint,
+  )
+  if (productionPinsComplete && !monetary.production_cadence_frozen) {
+    throw new PulseDagApiError(
+      'Pinned v3 production deployment requires a frozen monetary cadence',
+      'MONETARY_CADENCE_NOT_FROZEN',
     )
   }
 

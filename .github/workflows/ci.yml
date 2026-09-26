@@ -20,6 +20,7 @@ jobs:
       - run: npm run validate:fixtures
       - run: npm run validate:pagination
       - run: npm run validate:proxy
+      - run: npm run validate:v3-readiness
       - run: node --check scripts/smoke-live-rpc.mjs
       - run: npm run typecheck
       - run: npm run build

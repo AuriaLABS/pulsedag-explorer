@@ -16,6 +16,7 @@ The explorer is read-only. It must not become a source of provisional consensus,
 - v3.0 launch mode requires contracts to remain inactive. The explorer rejects live readiness when `contracts_enabled` is true or release metadata does not advertise the disabled-contract state.
 - The UI reports the network profile dynamically instead of hard-coding "Private testnet".
 - Unknown RPC paths remain denied by the nginx gateway.
+- Read-only browser RPC calls use a bounded transient-failure retry policy: 5 s timeout, one retry by default, exponential backoff from 300 ms, and a 5 s maximum delay. Identity, compatibility and contract-boundary failures are non-retryable.
 
 ## Values that must not be invented yet
 
@@ -45,6 +46,7 @@ A production deployment may be labelled mainnet only when all of the following a
 - The gateway exposes only the reviewed read-only explorer surface.
 - Exact-candidate RPC fixtures and pagination fixtures have been captured and validated.
 - The live smoke test passes against the frozen candidate.
+- Production retry settings remain bounded and do not convert identity or contract-boundary failures into retries.
 - The explorer build is produced from a reviewed commit with green CI.
 
 ## Remaining implementation work
@@ -56,6 +58,20 @@ A production deployment may be labelled mainnet only when all of the following a
 5. Pin final public RPC/gateway origin and CSP/CORS/TLS policy only after the launch infrastructure is frozen.
 6. Review whether the fail-closed `/api/v1/explorer/block/:hash` DAG surface becomes active for v3.0. The existing stable block/overview routes remain the baseline and no inactive protocol surface should be enabled merely for the explorer.
 7. Record final checksums/provenance for the explorer artifact alongside the v3 launch evidence.
+
+## RPC resilience boundary
+
+The browser retry policy exists only to smooth transient read failures. The reviewed defaults are:
+
+- `VITE_RPC_TIMEOUT_MS=5000`;
+- `VITE_RPC_MAX_RETRIES=1` (clamped to at most 2);
+- `VITE_RPC_RETRY_BASE_MS=300`;
+- retry delay capped at 5 seconds;
+- retryable HTTP statuses limited to 408, 425, 429, 500, 502, 503 and 504;
+- timeout and browser network failures are retryable;
+- response-shape errors, identity mismatches, release/capability mismatches and smart-contract-boundary violations are not retryable.
+
+The explorer remains read-only, so retries never repeat wallet, mining, transaction submission, admin or other mutation operations.
 
 ## v3 smart-contract boundary
 

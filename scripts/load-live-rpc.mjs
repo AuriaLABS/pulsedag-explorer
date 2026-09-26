@@ -2,6 +2,13 @@ const configuredBase = process.env.PULSEDAG_RPC_BASE_URL || 'http://127.0.0.1:80
 const baseUrl = configuredBase.replace(/\/$/, '')
 const parsedBase = new URL(baseUrl)
 
+if (!['http:', 'https:'].includes(parsedBase.protocol)) {
+  throw new Error('Read-only load test failed: PULSEDAG_RPC_BASE_URL must use http or https')
+}
+if (!parsedBase.pathname.endsWith('/api/v1')) {
+  throw new Error('Read-only load test failed: PULSEDAG_RPC_BASE_URL must end in /api/v1')
+}
+
 function fail(message) {
   throw new Error(`Read-only load test failed: ${message}`)
 }
@@ -51,6 +58,7 @@ async function requestData(path) {
   const response = await fetch(`${baseUrl}${path}`, {
     headers: { Accept: 'application/json' },
     signal: AbortSignal.timeout(timeoutMs),
+    cache: 'no-store',
   })
   assert(response.ok, `${path} returned HTTP ${response.status}`)
   const envelope = await response.json()
@@ -124,11 +132,11 @@ let endpointSequence = 0
 const endpointFactories = [
   {
     name: 'blocks_page',
-    path: () => `/blocks/page?limit=100&offset=${(endpointSequence % blockPages) * 100}`,
+    path: (sequence) => `/blocks/page?limit=100&offset=${(sequence % blockPages) * 100}`,
   },
   {
     name: 'transaction_activity',
-    path: () => `/txs/activity?limit=100&offset=${(endpointSequence % txPages) * 100}`,
+    path: (sequence) => `/txs/activity?limit=100&offset=${(sequence % txPages) * 100}`,
   },
   {
     name: 'block_overview',
@@ -148,11 +156,11 @@ const endpointFactories = [
   },
   {
     name: 'address_activity',
-    path: () => `/address/${encodedAddress}/activity?limit=100&offset=${(endpointSequence % addressPages) * 100}`,
+    path: (sequence) => `/address/${encodedAddress}/activity?limit=100&offset=${(sequence % addressPages) * 100}`,
   },
   {
     name: 'search',
-    path: () => `/search/${encodeURIComponent(endpointSequence % 2 === 0 ? head.hash : txid)}`,
+    path: (sequence) => `/search/${encodeURIComponent(sequence % 2 === 0 ? head.hash : txid)}`,
   },
 ]
 
@@ -206,7 +214,7 @@ async function worker() {
     const sequence = endpointSequence
     endpointSequence += 1
     const factory = endpointFactories[sequence % endpointFactories.length]
-    const path = factory.path()
+    const path = factory.path(sequence)
     issued += 1
     perEndpoint.get(factory.name).issued += 1
     await measuredRequest(factory.name, path)

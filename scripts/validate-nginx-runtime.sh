@@ -82,6 +82,7 @@ assert_status() {
 }
 
 hash="0123456789abcdef"
+assert_status 204 "/rpc/api/v1/policy"
 assert_status 204 "/rpc/api/v1/blocks/$hash/overview"
 assert_status 204 "/rpc/api/v1/blocks/$hash/transactions?limit=20&offset=0"
 assert_status 204 "/rpc/api/v1/txs/$hash/lookup"

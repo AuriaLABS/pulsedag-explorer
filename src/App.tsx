@@ -60,6 +60,7 @@ function App() {
       setSnapshot(nextSnapshot)
       setError('')
     } catch (loadError) {
+      if (explorerApi.isLiveMode) setSnapshot(null)
       setError(readableError(loadError))
     } finally {
       setLoading(false)

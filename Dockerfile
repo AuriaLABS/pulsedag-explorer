@@ -43,8 +43,8 @@ RUN mkdir -p /var/cache/nginx/client_temp \
   && touch /var/run/nginx.pid \
   && chown -R nginx:nginx /var/cache/nginx /var/run/nginx.pid
 
-COPY --chown=nginx:nginx deploy/nginx/pulsedag-explorer.conf /etc/nginx/conf.d/default.conf
-COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
+COPY deploy/nginx/pulsedag-explorer.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 
 USER nginx
 

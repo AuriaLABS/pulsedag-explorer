@@ -6,19 +6,25 @@ if [[ ! -d dist ]]; then
   exit 1
 fi
 
-commit_sha="${GITHUB_SHA:-}"
-if [[ -z "$commit_sha" ]]; then
-  commit_sha="$(git rev-parse HEAD)"
+source_sha="${PULSEDAG_SOURCE_SHA:-${GITHUB_SHA:-}}"
+if [[ -z "$source_sha" ]]; then
+  source_sha="$(git rev-parse HEAD)"
 fi
-if [[ ! "$commit_sha" =~ ^[0-9a-f]{40}$ ]]; then
-  echo "invalid commit SHA: $commit_sha" >&2
+if [[ ! "$source_sha" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "invalid source SHA: $source_sha" >&2
+  exit 1
+fi
+
+workflow_sha="${GITHUB_SHA:-$source_sha}"
+if [[ ! "$workflow_sha" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "invalid workflow SHA: $workflow_sha" >&2
   exit 1
 fi
 
 out_dir="artifacts"
-archive="$out_dir/pulsedag-explorer-$commit_sha.tar.gz"
+archive="$out_dir/pulsedag-explorer-$source_sha.tar.gz"
 checksum="$archive.sha256"
-provenance="$out_dir/pulsedag-explorer-$commit_sha.provenance.txt"
+provenance="$out_dir/pulsedag-explorer-$source_sha.provenance.txt"
 
 rm -rf "$out_dir"
 mkdir -p "$out_dir"

@@ -28,6 +28,23 @@ jobs:
           fi
       - run: bash scripts/validate-nginx-runtime.sh
       - run: npm run validate:v3-readiness
+      - run: npm run validate:container
       - run: node --check scripts/smoke-live-rpc.mjs
       - run: npm run typecheck
       - run: npm run build
+      - name: Build production container
+        run: docker build -t pulsedag-explorer-ci .
+      - name: Smoke production container
+        run: |
+          set -euo pipefail
+          docker run -d --name pulsedag-explorer-ci --add-host pulsedagd:127.0.0.1 -p 18082:8080 pulsedag-explorer-ci
+          trap 'docker rm -f pulsedag-explorer-ci >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18082/healthz | grep -qx 'ok'; then
+              break
+            fi
+            sleep 0.2
+          done
+          curl -fsS http://127.0.0.1:18082/healthz | grep -qx 'ok'
+          test "$(docker inspect --format '{{.Config.User}}' pulsedag-explorer-ci)" = "nginx"
+          test "$(docker inspect --format '{{.State.Health.Status}}' pulsedag-explorer-ci)" != "unhealthy"

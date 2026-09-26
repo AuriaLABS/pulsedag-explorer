@@ -20,6 +20,13 @@ jobs:
       - run: npm run validate:fixtures
       - run: npm run validate:pagination
       - run: npm run validate:proxy
+      - name: Install nginx for routing validation
+        run: |
+          if ! command -v nginx >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq nginx
+          fi
+      - run: bash scripts/validate-nginx-runtime.sh
       - run: npm run validate:v3-readiness
       - run: node --check scripts/smoke-live-rpc.mjs
       - run: npm run typecheck

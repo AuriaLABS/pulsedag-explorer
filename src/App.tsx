@@ -50,6 +50,7 @@ function App() {
   const [blockPageError, setBlockPageError] = useState('')
   const [mempoolPageError, setMempoolPageError] = useState('')
   const [copyMessage, setCopyMessage] = useState('Copy link')
+  const liveIdentityReady = !explorerApi.isLiveMode || snapshot !== null
 
   const loadSnapshot = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true)
@@ -96,6 +97,12 @@ function App() {
       return () => { cancelled = true }
     }
 
+    if (!liveIdentityReady) {
+      setBlockPage(null)
+      setBlockPageLoading(false)
+      return () => { cancelled = true }
+    }
+
     setBlockPageLoading(true)
     setBlockPageError('')
     void paginationApi.getBlocks(route.pagination.limit, route.pagination.offset)
@@ -104,7 +111,7 @@ function App() {
       .finally(() => { if (!cancelled) setBlockPageLoading(false) })
 
     return () => { cancelled = true }
-  }, [route])
+  }, [route, liveIdentityReady])
 
   useEffect(() => {
     let cancelled = false
@@ -112,6 +119,12 @@ function App() {
     if (route.kind !== 'dashboard' || route.view !== 'mempool') {
       setMempoolPage(null)
       setMempoolPageError('')
+      setMempoolPageLoading(false)
+      return () => { cancelled = true }
+    }
+
+    if (!liveIdentityReady) {
+      setMempoolPage(null)
       setMempoolPageLoading(false)
       return () => { cancelled = true }
     }
@@ -124,7 +137,7 @@ function App() {
       .finally(() => { if (!cancelled) setMempoolPageLoading(false) })
 
     return () => { cancelled = true }
-  }, [route])
+  }, [route, liveIdentityReady])
 
   useEffect(() => {
     let cancelled = false
@@ -136,6 +149,11 @@ function App() {
     setCopyMessage('Copy link')
 
     if (route.kind === 'dashboard' || route.kind === 'not-found') {
+      setDetailLoading(false)
+      return () => { cancelled = true }
+    }
+
+    if (!liveIdentityReady) {
       setDetailLoading(false)
       return () => { cancelled = true }
     }
@@ -163,7 +181,7 @@ function App() {
 
     void loadEntity()
     return () => { cancelled = true }
-  }, [route])
+  }, [route, liveIdentityReady])
 
   const stats = snapshot?.stats
   const events = snapshot?.events ?? []
@@ -218,6 +236,11 @@ function App() {
 
   async function handleSearch(event: FormEvent) {
     event.preventDefault()
+    if (!liveIdentityReady) {
+      setResults([])
+      setSearchMessage('Network identity is not verified yet.')
+      return
+    }
     setSearching(true)
     setSearchMessage('')
     try {
@@ -343,7 +366,7 @@ function App() {
           <form onSubmit={handleSearch}>
             <span>⌕</span>
             <input value={query} onChange={(event: ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)} placeholder="Paste a hash, txid or address" aria-label="Search PulseDAG" />
-            <button disabled={searching}>{searching ? 'Searching…' : 'Search'}</button>
+            <button disabled={searching || !liveIdentityReady}>{searching ? 'Searching…' : 'Search'}</button>
             {(results.length > 0 || searchMessage) && (
               <div className="search-results">
                 {results.map((result) => (
@@ -390,7 +413,7 @@ function App() {
           </>
         )}
 
-        {((dashboardView === 'overview' && snapshot) || dashboardView === 'blocks') && (
+        {liveIdentityReady && ((dashboardView === 'overview' && snapshot) || dashboardView === 'blocks') && (
           <section className="panel table-panel">
             <div className="panel-header">
               <div><span className="eyebrow">Ledger feed</span><h3>{dashboardView === 'blocks' ? 'Paginated blocks' : 'Latest blocks'}</h3></div>
@@ -408,7 +431,7 @@ function App() {
           </section>
         )}
 
-        {dashboardView === 'transactions' && route.kind === 'dashboard' && route.view === 'transactions' && (
+        {liveIdentityReady && dashboardView === 'transactions' && route.kind === 'dashboard' && route.view === 'transactions' && (
           <TransactionActivityPanel
             pagination={route.pagination}
             onOpenTransaction={openTransaction}
@@ -417,7 +440,7 @@ function App() {
           />
         )}
 
-        {dashboardView === 'mempool' && (
+        {liveIdentityReady && dashboardView === 'mempool' && (
           <MempoolPanel
             page={mempoolPage}
             loading={mempoolPageLoading}
@@ -452,7 +475,7 @@ function App() {
           </section>
         )}
 
-        {isEntityRoute && (
+        {liveIdentityReady && isEntityRoute && (
           <section className="entity-page">
             <div className="entity-page-toolbar">
               <button className="entity-page-action" onClick={leaveEntityPage}>← Back to explorer</button>

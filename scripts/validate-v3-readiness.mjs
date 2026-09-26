@@ -22,6 +22,7 @@ for (const key of [
   'VITE_EXPECTED_RELEASE_MAJOR',
   'VITE_EXPECTED_NETWORK_PROFILE',
   'VITE_EXPECTED_CHAIN_ID',
+  'VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT',
 ]) {
   const match = env.match(new RegExp(`^${key}=(.*)$`, 'm'))
   assert(match, `.env.example is missing ${key}`)
@@ -46,12 +47,19 @@ for (const [key, expected] of [
 
 for (const fragment of [
   "request<ReleaseInfoData>('/release')",
+  "request<PolicyData>('/policy')",
   'NETWORK_IDENTITY_MISMATCH',
   'RELEASE_IDENTITY_MISMATCH',
   'RELEASE_MAJOR_MISMATCH',
   'NETWORK_PROFILE_MISMATCH',
   'CHAIN_ID_MISMATCH',
   'CONTRACTS_NOT_DISABLED',
+  'MONETARY_POLICY_MISSING',
+  'MONETARY_POLICY_IDENTITY_INVALID',
+  'MONETARY_VALUE_ENCODING_INVALID',
+  'MONETARY_POLICY_INCOMPATIBLE',
+  'MONETARY_CADENCE_IDENTITY_INVALID',
+  'MONETARY_POLICY_FINGERPRINT_MISMATCH',
   "release.capabilities.includes('explorer_api')",
   "release.capabilities.includes('contracts_disabled')",
   'status.contracts_enabled !== false',
@@ -80,6 +88,10 @@ assert(
   'production gateway must expose exact read-only /api/v1/release',
 )
 assert(
+  nginx.includes('location = /rpc/api/v1/policy'),
+  'production gateway must expose exact read-only /api/v1/policy',
+)
+assert(
   /location \/rpc\/\s*\{\s*return 404;/m.test(nginx),
   'production gateway must keep deny-by-default RPC fallback',
 )
@@ -101,6 +113,9 @@ for (const fragment of [
   'PulseDAG #1049',
   'must not hard-code guessed values',
   'VITE_EXPECTED_RELEASE_MAJOR=3',
+  'VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT',
+  '/api/v1/policy',
+  'PulseDAG #1045',
   'VITE_REQUIRE_CONTRACTS_DISABLED=true',
 ]) {
   assert(docs.includes(fragment), `v3 readiness documentation is missing: ${fragment}`)

@@ -178,10 +178,12 @@ function App() {
   const syncLabel = stats?.syncState || (loading ? 'connecting' : 'unknown')
   const pollSeconds = Math.round(explorerApi.pollIntervalMs / 1_000)
   const isEntityRoute = route.kind === 'block' || route.kind === 'transaction' || route.kind === 'address'
+  const networkLabel = stats?.networkProfile || (snapshot?.mode === 'mock' ? 'Mock network' : 'Network pending')
+  const explorerVersion = stats?.releaseVersion || 'v3-ready'
 
   const networkSummary = useMemo(() => {
     if (!stats) return 'Waiting for node data'
-    return `${stats.chainId} · ${stats.consensusMode}`
+    return `${stats.networkProfile} · ${stats.chainId} · ${stats.consensusMode}`
   }, [stats])
 
   function goTo(nextRoute: ExplorerRoute, replace = false) {
@@ -296,7 +298,7 @@ function App() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className={`network-indicator ${isHealthy ? '' : 'warning'}`}><i />Private testnet</div>
+          <div className={`network-indicator ${isHealthy ? '' : 'warning'}`}><i />{networkLabel}</div>
           <small>{connectionLabel}</small>
           <small>Refresh: {pollSeconds}s</small>
         </div>
@@ -305,7 +307,7 @@ function App() {
       <main>
         <header className="topbar">
           <div>
-            <span className="eyebrow">Private-testnet intelligence</span>
+            <span className="eyebrow">{networkLabel} intelligence</span>
             <h1>{explorerRouteHeading(route)}</h1>
           </div>
           <div className="topbar-actions">
@@ -334,7 +336,7 @@ function App() {
 
         <section className="search-panel">
           <div>
-            <span className="eyebrow">Explore PulseDAG v2.3.0</span>
+            <span className="eyebrow">Explore PulseDAG {explorerVersion}</span>
             <h2>Search the graph.</h2>
             <p>Resolve a block hash, transaction ID or known address through the stable read-only RPC.</p>
           </div>
@@ -434,6 +436,9 @@ function App() {
                 <h3>{node.label}</h3><p>{networkSummary}</p>
                 <dl>
                   <div><dt>Version</dt><dd>{node.version}</dd></div>
+                  <div><dt>Network profile</dt><dd>{stats?.networkProfile ?? 'unknown'}</dd></div>
+                  <div><dt>Identity guard</dt><dd>{stats?.identityPinned ? 'pinned' : 'verified, not pinned'}</dd></div>
+                  <div><dt>Smart contracts</dt><dd>{stats?.contractsEnabled ? 'active' : 'inactive'}</dd></div>
                   <div><dt>RPC round trip</dt><dd>{node.latencyMs} ms</dd></div>
                   <div><dt>Best height</dt><dd>{number.format(node.bestHeight)}</dd></div>
                   <div><dt>Connected peers</dt><dd>{node.peerCount}</dd></div>

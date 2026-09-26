@@ -4,6 +4,10 @@ interface ImportMetaEnv {
   readonly VITE_DATA_MODE?: 'live' | 'mock'
   readonly VITE_API_BASE_URL?: string
   readonly VITE_POLL_INTERVAL_MS?: string
+  readonly VITE_EXPECTED_RELEASE_MAJOR?: string
+  readonly VITE_EXPECTED_NETWORK_PROFILE?: string
+  readonly VITE_EXPECTED_CHAIN_ID?: string
+  readonly VITE_REQUIRE_CONTRACTS_DISABLED?: string
 }
 
 interface ImportMeta {

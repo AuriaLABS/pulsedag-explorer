@@ -38,6 +38,16 @@ interface NodeStatusData {
   peer_count: number
   sync_state: string
   storage_backend: string
+  contracts_enabled: boolean
+}
+
+interface ReleaseInfoData {
+  version: string
+  network_profile: string
+  chain_id: string
+  capabilities: string[]
+  api_profile: string
+  smart_contracts: string
 }
 
 interface SyncStatusData {
@@ -158,6 +168,11 @@ const pollIntervalMs = Number.isFinite(configuredPollInterval)
   ? Math.min(60_000, Math.max(5_000, configuredPollInterval))
   : 15_000
 
+const expectedReleaseMajor = import.meta.env.VITE_EXPECTED_RELEASE_MAJOR?.trim().replace(/^v/i, '') || ''
+const expectedNetworkProfile = import.meta.env.VITE_EXPECTED_NETWORK_PROFILE?.trim() || ''
+const expectedChainId = import.meta.env.VITE_EXPECTED_CHAIN_ID?.trim() || ''
+const requireContractsDisabled = (import.meta.env.VITE_REQUIRE_CONTRACTS_DISABLED?.trim().toLowerCase() || 'true') !== 'false'
+
 class PulseDagApiError extends Error {
   constructor(
     message: string,
@@ -256,10 +271,81 @@ function rejectionMessage(result: PromiseRejectedResult): string {
   return result.reason instanceof Error ? result.reason.message : String(result.reason)
 }
 
+function releaseMajor(version: string): string {
+  return version.trim().replace(/^v/i, '').split('.')[0] || ''
+}
+
+function assertLiveIdentity(status: NodeStatusData, release: ReleaseInfoData): boolean {
+  if (!status.version?.trim() || !status.chain_id?.trim()) {
+    throw new PulseDagApiError('PulseDAG /status omitted required release or chain identity fields', 'STATUS_IDENTITY_MISSING')
+  }
+  if (!release.version?.trim() || !release.network_profile?.trim() || !release.chain_id?.trim()) {
+    throw new PulseDagApiError('PulseDAG /release omitted required network identity fields', 'RELEASE_IDENTITY_MISSING')
+  }
+  if (!Array.isArray(release.capabilities)) {
+    throw new PulseDagApiError('PulseDAG /release omitted the capabilities list', 'RELEASE_CAPABILITIES_MISSING')
+  }
+
+  if (status.chain_id !== release.chain_id) {
+    throw new PulseDagApiError(
+      `PulseDAG identity mismatch: /status reports chain ${status.chain_id} but /release reports ${release.chain_id}`,
+      'NETWORK_IDENTITY_MISMATCH',
+    )
+  }
+
+  if (status.version !== release.version) {
+    throw new PulseDagApiError(
+      `PulseDAG release mismatch: /status reports ${status.version} but /release reports ${release.version}`,
+      'RELEASE_IDENTITY_MISMATCH',
+    )
+  }
+
+  if (!release.capabilities.includes('explorer_api')) {
+    throw new PulseDagApiError('Connected node does not advertise the explorer_api capability', 'EXPLORER_CAPABILITY_MISSING')
+  }
+
+  if (expectedReleaseMajor && releaseMajor(release.version) !== expectedReleaseMajor) {
+    throw new PulseDagApiError(
+      `Expected PulseDAG release major v${expectedReleaseMajor}, received ${release.version}`,
+      'RELEASE_MAJOR_MISMATCH',
+    )
+  }
+
+  if (expectedNetworkProfile && release.network_profile !== expectedNetworkProfile) {
+    throw new PulseDagApiError(
+      `Expected network profile ${expectedNetworkProfile}, received ${release.network_profile}`,
+      'NETWORK_PROFILE_MISMATCH',
+    )
+  }
+
+  if (expectedChainId && release.chain_id !== expectedChainId) {
+    throw new PulseDagApiError(
+      `Expected chain ID ${expectedChainId}, received ${release.chain_id}`,
+      'CHAIN_ID_MISMATCH',
+    )
+  }
+
+  if (requireContractsDisabled) {
+    const releaseSaysDisabled =
+      release.capabilities.includes('contracts_disabled') &&
+      typeof release.smart_contracts === 'string' &&
+      release.smart_contracts.toLowerCase().startsWith('disabled')
+    if (status.contracts_enabled !== false || !releaseSaysDisabled) {
+      throw new PulseDagApiError(
+        'Smart-contract surfaces are not proven inactive; v3.0.0 explorer access is fail-closed',
+        'CONTRACTS_NOT_DISABLED',
+      )
+    }
+  }
+
+  return Boolean(expectedReleaseMajor && expectedNetworkProfile && expectedChainId)
+}
+
 async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
   const startedAt = performance.now()
-  const [statusResult, blocksResult, syncResult, mempoolResult, powResult] = await Promise.allSettled([
+  const [statusResult, releaseResult, blocksResult, syncResult, mempoolResult, powResult] = await Promise.allSettled([
     request<NodeStatusData>('/status'),
+    request<ReleaseInfoData>('/release'),
     request<BlocksData>('/blocks/recent?limit=20'),
     request<SyncStatusData>('/sync/status'),
     request<MempoolData>('/mempool'),
@@ -267,15 +353,21 @@ async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
   ])
 
   if (statusResult.status === 'rejected') throw statusResult.reason
+  if (releaseResult.status === 'rejected') throw releaseResult.reason
   if (blocksResult.status === 'rejected') throw blocksResult.reason
 
   const status = statusResult.value
+  const release = releaseResult.value
   const blocks = blocksResult.value
+  const identityPinned = assertLiveIdentity(status, release)
   const sync = syncResult.status === 'fulfilled' ? syncResult.value : null
   const mempool = mempoolResult.status === 'fulfilled' ? mempoolResult.value : null
   const pow = powResult.status === 'fulfilled' ? powResult.value : null
   const warnings: string[] = []
 
+  if (!identityPinned) {
+    warnings.push('Network identity is verified against /status and /release but is not pinned to a frozen deployment identity')
+  }
   if (syncResult.status === 'rejected') warnings.push(`Sync status unavailable: ${rejectionMessage(syncResult)}`)
   if (mempoolResult.status === 'rejected') warnings.push(`Mempool status unavailable: ${rejectionMessage(mempoolResult)}`)
   if (powResult.status === 'rejected') warnings.push(`PoW health unavailable: ${rejectionMessage(powResult)}`)
@@ -301,8 +393,12 @@ async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
     difficulty: pow?.latest_suggested_difficulty ?? 0,
     operationalPressure: deriveOperationalPressure(lagBlocks, mempoolTransactions, orphanTransactions),
     version: status.version,
-    chainId: status.chain_id || status.network_id,
+    releaseVersion: release.version,
+    networkProfile: release.network_profile,
+    chainId: release.chain_id,
     consensusMode: status.consensus_mode,
+    contractsEnabled: status.contracts_enabled,
+    identityPinned,
     snapshotHeight: status.snapshot_height,
     rpcDegraded: status.rpc_response_degraded || status.rpc_response_stale,
     powStatus: pow?.status ?? 'unknown',
@@ -312,7 +408,7 @@ async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
     id: status.service || 'pulsedagd',
     label: 'Connected PulseDAG node',
     chainId: stats.chainId,
-    version: status.version,
+    version: release.version,
     latencyMs,
     status: nodeState(status, sync),
     peerCount: status.peer_count,

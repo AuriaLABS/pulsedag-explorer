@@ -24,21 +24,41 @@ async function request(path) {
   return envelope.data
 }
 
-const [status, blocks, blockPage, terminalBlockPage, sync, mempool, mempoolPage, transactionActivity, terminalTransactionActivity, pow] = await Promise.all([
+const [status, release, blocks, blockPage, sync, mempool, mempoolPage, transactionActivity, pow] = await Promise.all([
   request('/status'),
+  request('/release'),
   request('/blocks/recent?limit=20'),
   request('/blocks/page?limit=20&offset=0'),
-  request('/blocks/page?limit=20&offset=100'),
   request('/sync/status'),
   request('/mempool'),
   request('/txs/page?limit=20&offset=0'),
   request('/txs/activity?limit=20&offset=0'),
-  request('/txs/activity?limit=20&offset=100'),
   request('/pow/health')
 ])
 
-assert(status.version === 'v2.3.0', `expected v2.3.0, received ${status.version}`)
+const expectedReleaseMajor = (process.env.PULSEDAG_EXPECTED_RELEASE_MAJOR || '').replace(/^v/i, '')
+const expectedNetworkProfile = process.env.PULSEDAG_EXPECTED_NETWORK_PROFILE || ''
+const expectedChainId = process.env.PULSEDAG_EXPECTED_CHAIN_ID || ''
+
 assert(typeof status.chain_id === 'string' && status.chain_id.length > 0, 'status chain_id is missing')
+assert(typeof release.network_profile === 'string' && release.network_profile.length > 0, 'release network_profile is missing')
+assert(typeof release.chain_id === 'string' && release.chain_id.length > 0, 'release chain_id is missing')
+assert(status.chain_id === release.chain_id, 'status and release chain IDs differ')
+assert(status.version === release.version, 'status and release versions differ')
+assert(Array.isArray(release.capabilities) && release.capabilities.includes('explorer_api'), 'release does not advertise explorer_api')
+assert(status.contracts_enabled === false, 'status reports smart contracts enabled')
+assert(release.capabilities.includes('contracts_disabled'), 'release does not advertise contracts_disabled')
+assert(typeof release.smart_contracts === 'string' && release.smart_contracts.toLowerCase().startsWith('disabled'), 'release smart-contract state is not disabled')
+if (expectedReleaseMajor) assert(release.version.replace(/^v/i, '').split('.')[0] === expectedReleaseMajor, `expected release major v${expectedReleaseMajor}, received ${release.version}`)
+if (expectedNetworkProfile) assert(release.network_profile === expectedNetworkProfile, `expected network profile ${expectedNetworkProfile}, received ${release.network_profile}`)
+if (expectedChainId) assert(release.chain_id === expectedChainId, `expected chain ID ${expectedChainId}, received ${release.chain_id}`)
+
+const terminalBlockOffset = Math.ceil(blockPage.total / blockPage.limit) * blockPage.limit
+const terminalTransactionOffset = Math.ceil(transactionActivity.total / transactionActivity.limit) * transactionActivity.limit
+const [terminalBlockPage, terminalTransactionActivity] = await Promise.all([
+  request(`/blocks/page?limit=${blockPage.limit}&offset=${terminalBlockOffset}`),
+  request(`/txs/activity?limit=${transactionActivity.limit}&offset=${terminalTransactionOffset}`)
+])
 assert(status.rpc_response_degraded === false, 'status RPC response is degraded')
 assert(status.rpc_response_stale === false, 'status RPC response is stale')
 assert(Array.isArray(blocks.blocks) && blocks.blocks.length > 0, 'recent blocks returned no blocks')
@@ -46,7 +66,7 @@ assert(Array.isArray(blockPage.blocks) && blockPage.blocks.length > 0, 'first pa
 assert(blockPage.limit === 20 && blockPage.offset === 0, 'first paginated block page coordinates are invalid')
 assert(blockPage.count === blockPage.blocks.length, 'paginated block count does not match block array length')
 assert(Array.isArray(terminalBlockPage.blocks) && terminalBlockPage.blocks.length === 0, 'terminal block page must be empty')
-assert(terminalBlockPage.offset === 100 && terminalBlockPage.has_more === false, 'terminal block page boundary is invalid')
+assert(terminalBlockPage.offset === terminalBlockOffset && terminalBlockPage.has_more === false, 'terminal block page boundary is invalid')
 assert(typeof sync.consistency_ok === 'boolean', 'sync consistency flag is missing')
 assert(typeof sync.lag_blocks === 'number', 'sync lag_blocks is missing')
 assert(typeof mempool.transaction_count === 'number', 'mempool transaction_count is missing')
@@ -60,7 +80,7 @@ assert(transactionActivity.limit === 20 && transactionActivity.offset === 0, 'tr
 assert(transactionActivity.count === transactionActivity.transactions.length, 'transaction activity count does not match transaction array length')
 assert(transactionActivity.total >= transactionActivity.count, 'transaction activity total does not cover page count')
 assert(Array.isArray(terminalTransactionActivity.transactions) && terminalTransactionActivity.transactions.length === 0, 'terminal transaction activity page must be empty')
-assert(terminalTransactionActivity.offset === 100 && terminalTransactionActivity.has_more === false, 'terminal transaction activity boundary is invalid')
+assert(terminalTransactionActivity.offset === terminalTransactionOffset && terminalTransactionActivity.has_more === false, 'terminal transaction activity boundary is invalid')
 assert(terminalTransactionActivity.total === transactionActivity.total, 'transaction activity total changed across page boundaries')
 assert(typeof pow.status === 'string', 'PoW health status is missing')
 
@@ -106,12 +126,15 @@ assert(typeof output.address === 'string' && output.address.length > 0, 'transac
 assert(typeof output.amount === 'number', 'transaction output amount is missing')
 
 const encodedAddress = encodeURIComponent(output.address)
-const [addressSummary, addressActivity, terminalAddressActivity, addressSearch] = await Promise.all([
+const [addressSummary, addressActivity, addressSearch] = await Promise.all([
   request(`/address/${encodedAddress}/summary`),
   request(`/address/${encodedAddress}/activity?limit=20&offset=0`),
-  request(`/address/${encodedAddress}/activity?limit=20&offset=100`),
   request(`/search/${encodedAddress}`)
 ])
+const terminalAddressOffset = Math.ceil(addressActivity.total / addressActivity.limit) * addressActivity.limit
+const terminalAddressActivity = await request(
+  `/address/${encodedAddress}/activity?limit=${addressActivity.limit}&offset=${terminalAddressOffset}`
+)
 
 assert(addressSummary.address === output.address, 'address summary returned a different address')
 assert(typeof addressSummary.confirmed_balance === 'number', 'address confirmed balance is missing')
@@ -121,14 +144,16 @@ assert(Array.isArray(addressActivity.activity) && addressActivity.activity.lengt
 assert(addressActivity.activity.some((item) => item.txid === txid), 'address activity does not contain the linked transaction')
 assert(terminalAddressActivity.address === output.address, 'terminal address activity returned a different address')
 assert(Array.isArray(terminalAddressActivity.activity) && terminalAddressActivity.activity.length === 0, 'terminal address activity page must be empty')
-assert(terminalAddressActivity.offset === 100 && terminalAddressActivity.has_more === false, 'terminal address activity boundary is invalid')
+assert(terminalAddressActivity.offset === terminalAddressOffset && terminalAddressActivity.has_more === false, 'terminal address activity boundary is invalid')
 assert(addressSearch.found === true && addressSearch.kind === 'address', 'exact address search did not resolve the address')
 assert(addressSearch.address === output.address, 'exact address search returned a different address')
 
 console.log(JSON.stringify({
   base_url: baseUrl,
-  version: status.version,
-  chain_id: status.chain_id,
+  version: release.version,
+  network_profile: release.network_profile,
+  chain_id: release.chain_id,
+  identity_pinned: Boolean(expectedReleaseMajor && expectedNetworkProfile && expectedChainId),
   best_height: status.best_height,
   head_hash: head.hash,
   block_page_total: blockPage.total,

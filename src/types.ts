@@ -15,8 +15,12 @@ export interface NetworkStats {
   difficulty: number
   operationalPressure: number
   version: string
+  releaseVersion: string
+  networkProfile: string
   chainId: string
   consensusMode: string
+  contractsEnabled: boolean
+  identityPinned: boolean
   snapshotHeight: number | null
   rpcDegraded: boolean
   powStatus: string

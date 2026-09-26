@@ -13,6 +13,7 @@ function assert(condition, message) {
 
 const expectedProxyTargets = new Set([
   '/api/v1/status',
+  '/api/v1/release',
   '/api/v1/blocks/recent',
   '/api/v1/blocks/page$is_args$args',
   '/api/v1/blocks/$1/overview',
@@ -54,6 +55,7 @@ for (const fragment of forbiddenFragments) {
   assert(!proxyTargets.some((target) => target.includes(fragment)), `write or operator route is exposed: ${fragment}`)
 }
 
+assert(config.includes('location = /rpc/api/v1/release'), 'release identity metadata must use an exact read-only route')
 assert(config.includes('location = /rpc/api/v1/blocks/page'), 'block pagination must use an exact route')
 assert(config.includes('/blocks/page$is_args$args'), 'block pagination query parameters must be preserved')
 assert(config.includes('location ~ ^/rpc/api/v1/blocks/([0-9A-Fa-f]{16,128})/transactions$'), 'block transactions must require a bounded hexadecimal block hash')

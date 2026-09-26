@@ -31,3 +31,15 @@ jobs:
       - run: node --check scripts/smoke-live-rpc.mjs
       - run: npm run typecheck
       - run: npm run build
+      - name: Package checksummed explorer build
+        run: bash scripts/package-build-artifact.sh
+      - name: Upload checksummed explorer build
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulsedag-explorer-${{ github.sha }}
+          path: |
+            artifacts/*.tar.gz
+            artifacts/*.sha256
+            artifacts/*.provenance.txt
+          if-no-files-found: error
+          retention-days: 30

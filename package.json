@@ -13,7 +13,8 @@
     "validate:proxy": "node scripts/validate-proxy-config.mjs",
     "validate:v3-readiness": "node scripts/validate-v3-readiness.mjs",
     "smoke:live": "node scripts/smoke-live-rpc.mjs",
-    "load:live": "node scripts/load-live-rpc.mjs"
+    "load:live": "node scripts/load-live-rpc.mjs",
+    "validate:load-harness": "node scripts/validate-load-harness.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

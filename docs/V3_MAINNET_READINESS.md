@@ -49,7 +49,7 @@ A production deployment may be labelled mainnet only when all of the following a
 - `VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT` equals the final fingerprint frozen by PulseDAG #1045.
 - `VITE_REQUIRE_CONTRACTS_DISABLED=true`.
 - The connected `/status`, `/release` and v3 `/policy` responses pass the identity and monetary-policy guards.
-- If production monetary cadence is reported frozen, its cadence fingerprint must be a valid 32-byte hex identity.
+- A fully pinned production deployment requires `production_cadence_frozen=true` and a valid 32-byte cadence fingerprint; a pinned explorer fails closed while the cadence freeze is still pending.
 - The gateway exposes only the reviewed read-only explorer surface.
 - Exact-candidate RPC fixtures and pagination fixtures have been captured and validated.
 - The live smoke test passes against the frozen candidate.

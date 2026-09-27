@@ -6,7 +6,8 @@ A read-only explorer being prepared for PulseDAG v3.0.0 and the coordinated main
 
 - Real node status from `GET /api/v1/status`
 - Release/network identity metadata from `GET /api/v1/release`
-- Fail-closed checks for release major, network profile, chain ID and inactive smart-contract state
+- v3 monetary-policy metadata from `GET /api/v1/policy`, preserving large atom/Q64 fields as integer strings
+- Fail-closed checks for release major, network profile, chain ID, optional monetary-policy fingerprint and inactive smart-contract state
 - Sync and convergence state from `GET /api/v1/sync/status`
 - Mempool counters from `GET /api/v1/mempool`
 - Paginated mempool transactions from `GET /api/v1/txs/page`
@@ -61,6 +62,7 @@ VITE_EXPECTED_RELEASE_MAJOR=
 VITE_EXPECTED_NETWORK_PROFILE=
 VITE_EXPECTED_CHAIN_ID=
 VITE_REQUIRE_CONTRACTS_DISABLED=true
+VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT=
 
 PULSEDAG_RPC_TARGET=http://127.0.0.1:8080
 ```
@@ -71,7 +73,7 @@ Transient read failures use bounded retries only. The default is one retry after
 
 ## v3.0 / mainnet identity guard
 
-Live mode reads both `/api/v1/status` and `/api/v1/release` before presenting the node as healthy. It rejects the connection when those endpoints disagree on release/chain identity, when the node does not advertise `explorer_api`, or when the v3.0 inactive-contract boundary is not proven.
+Live mode reads `/api/v1/status` and `/api/v1/release` before presenting the node as healthy. For a v3 node it also requires `/api/v1/policy` and a valid `monetary_v3` contract. It rejects the connection when identity endpoints disagree, when the node does not advertise `explorer_api`, when monetary identity/encoding is malformed, when an optional monetary fingerprint pin mismatches, or when the v3.0 inactive-contract boundary is not proven.
 
 The three expected identity variables are intentionally blank in `.env.example` while PulseDAG #1049 / Task31 has not frozen the independent mainnet and parallel-testnet identities. A production mainnet deployment must set all of:
 
@@ -79,7 +81,11 @@ The three expected identity variables are intentionally blank in `.env.example` 
 - `VITE_EXPECTED_NETWORK_PROFILE=<frozen mainnet network profile>`
 - `VITE_EXPECTED_CHAIN_ID=<frozen mainnet chain id>`
 
-Until all three values are pinned, the UI displays the reported network identity but marks it as **verified, not pinned**. This prevents the explorer repository from becoming an accidental source of provisional mainnet constants.
+PulseDAG #1045 independently freezes the monetary-policy identity. Once that exact candidate is accepted, production should also set:
+
+- `VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT=<frozen #1045 fingerprint>`
+
+Until the network values are pinned, the UI marks network identity as **verified, not pinned**. Until the monetary fingerprint is pinned, the v3 policy is likewise shown as verified-not-pinned. This prevents the explorer repository from becoming an accidental source of provisional consensus or mainnet constants.
 
 `VITE_REQUIRE_CONTRACTS_DISABLED=true` is the v3.0 launch default. The explorer fails closed if `/status` reports contracts enabled or `/release` does not advertise the disabled-contract capability/state required by the v3.0 launch program.
 
@@ -149,6 +155,7 @@ The allowlist contains:
 
 - status
 - release/network identity metadata
+- v3 monetary policy metadata
 - recent blocks
 - bounded block pagination with query preservation
 - one block overview

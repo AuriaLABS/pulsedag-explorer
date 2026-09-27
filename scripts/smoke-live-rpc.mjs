@@ -24,9 +24,10 @@ async function request(path) {
   return envelope.data
 }
 
-const [status, release, blocks, blockPage, sync, mempool, mempoolPage, transactionActivity, pow] = await Promise.all([
+const [status, release, policy, blocks, blockPage, sync, mempool, mempoolPage, transactionActivity, pow] = await Promise.all([
   request('/status'),
   request('/release'),
+  request('/policy'),
   request('/blocks/recent?limit=20'),
   request('/blocks/page?limit=20&offset=0'),
   request('/sync/status'),
@@ -39,6 +40,8 @@ const [status, release, blocks, blockPage, sync, mempool, mempoolPage, transacti
 const expectedReleaseMajor = (process.env.PULSEDAG_EXPECTED_RELEASE_MAJOR || '').replace(/^v/i, '')
 const expectedNetworkProfile = process.env.PULSEDAG_EXPECTED_NETWORK_PROFILE || ''
 const expectedChainId = process.env.PULSEDAG_EXPECTED_CHAIN_ID || ''
+const expectedMonetaryPolicyFingerprint =
+  (process.env.PULSEDAG_EXPECTED_MONETARY_POLICY_FINGERPRINT || '').toLowerCase()
 
 assert(typeof status.chain_id === 'string' && status.chain_id.length > 0, 'status chain_id is missing')
 assert(typeof release.network_profile === 'string' && release.network_profile.length > 0, 'release network_profile is missing')
@@ -52,6 +55,72 @@ assert(typeof release.smart_contracts === 'string' && release.smart_contracts.to
 if (expectedReleaseMajor) assert(release.version.replace(/^v/i, '').split('.')[0] === expectedReleaseMajor, `expected release major v${expectedReleaseMajor}, received ${release.version}`)
 if (expectedNetworkProfile) assert(release.network_profile === expectedNetworkProfile, `expected network profile ${expectedNetworkProfile}, received ${release.network_profile}`)
 if (expectedChainId) assert(release.chain_id === expectedChainId, `expected chain ID ${expectedChainId}, received ${release.chain_id}`)
+
+if (release.version.replace(/^v/i, '').split('.')[0] === '3') {
+  const monetary = policy.monetary_v3
+  assert(monetary && typeof monetary === 'object', 'v3 policy omitted monetary_v3')
+  assert(
+    typeof monetary.policy_fingerprint === 'string' &&
+      /^[0-9a-f]{64}$/i.test(monetary.policy_fingerprint),
+    'v3 monetary policy fingerprint is malformed'
+  )
+
+  for (const [name, value] of [
+    ['atoms_per_coin', monetary.atoms_per_coin],
+    ['max_supply_atoms', monetary.max_supply_atoms],
+    ['genesis_issuance_atoms', monetary.genesis_issuance_atoms],
+    ['year1_target_issuance_atoms', monetary.year1_target_issuance_atoms],
+    ['decay_factor_q64', monetary.decay_factor_q64],
+    ['half_life_end_factor_q64', monetary.half_life_end_factor_q64],
+    ['tail_emission_atoms', monetary.tail_emission_atoms]
+  ]) {
+    assert(
+      typeof value === 'string' && /^\d+$/.test(value),
+      `v3 monetary field ${name} is not an integer string`
+    )
+  }
+
+  assert(
+    monetary.programmable_resource_fees_active === false,
+    'v3 programmable resource fees are unexpectedly active'
+  )
+  assert(
+    typeof monetary.production_cadence_frozen === 'boolean',
+    'v3 production_cadence_frozen is not boolean'
+  )
+  assert(
+    Number.isSafeInteger(monetary.half_life_years) &&
+      monetary.half_life_years > 0 &&
+      Number.isSafeInteger(monetary.emission_quantum_seconds) &&
+      monetary.emission_quantum_seconds > 0 &&
+      Number.isSafeInteger(monetary.terminal_economic_year) &&
+      monetary.terminal_economic_year > 0,
+    'v3 consumed monetary timing fields are invalid'
+  )
+  if (monetary.production_cadence_frozen) {
+    assert(
+      typeof monetary.production_cadence_fingerprint === 'string' &&
+        /^[0-9a-f]{64}$/i.test(monetary.production_cadence_fingerprint),
+      'frozen v3 monetary cadence fingerprint is malformed'
+    )
+  }
+  if (expectedMonetaryPolicyFingerprint) {
+    assert(
+      /^[0-9a-f]{64}$/.test(expectedMonetaryPolicyFingerprint),
+      'configured monetary-policy fingerprint pin is malformed'
+    )
+    assert(
+      monetary.policy_fingerprint.toLowerCase() === expectedMonetaryPolicyFingerprint,
+      `expected monetary policy ${expectedMonetaryPolicyFingerprint}, received ${monetary.policy_fingerprint}`
+    )
+  }
+  if (expectedReleaseMajor && expectedNetworkProfile && expectedChainId && expectedMonetaryPolicyFingerprint) {
+    assert(
+      monetary.production_cadence_frozen === true,
+      'pinned v3 production deployment requires frozen monetary cadence'
+    )
+  }
+}
 
 const terminalBlockOffset = Math.ceil(blockPage.total / blockPage.limit) * blockPage.limit
 const terminalTransactionOffset = Math.ceil(transactionActivity.total / transactionActivity.limit) * transactionActivity.limit
@@ -154,6 +223,9 @@ console.log(JSON.stringify({
   network_profile: release.network_profile,
   chain_id: release.chain_id,
   identity_pinned: Boolean(expectedReleaseMajor && expectedNetworkProfile && expectedChainId),
+  monetary_policy_fingerprint: policy.monetary_v3?.policy_fingerprint ?? null,
+  monetary_policy_pinned: Boolean(expectedMonetaryPolicyFingerprint),
+  production_cadence_frozen: policy.monetary_v3?.production_cadence_frozen ?? false,
   best_height: status.best_height,
   head_hash: head.hash,
   block_page_total: blockPage.total,

@@ -50,6 +50,39 @@ interface ReleaseInfoData {
   smart_contracts: string
 }
 
+interface MonetaryPolicyV3Data {
+  activation_state: string
+  policy_version: string
+  policy_fingerprint: string
+  production_cadence_fingerprint: string | null
+  production_cadence_frozen: boolean
+  symbol: string
+  decimals: number
+  atoms_per_coin: string
+  max_supply_atoms: string
+  genesis_issuance_atoms: string
+  year1_target_issuance_atoms: string
+  economic_year_seconds: number
+  half_life_years: number
+  half_life_seconds: number
+  emission_quantum_seconds: number
+  decay_factor_q64: string
+  half_life_end_factor_q64: string
+  terminal_half_lives: number
+  terminal_economic_year: number
+  terminal_emission_quantum: number
+  terminal_emission_seconds: number
+  coinbase_maturity_seconds: number
+  ordinary_fee_recipient_bps: number
+  consensus_burn_bps: number
+  tail_emission_atoms: string
+  programmable_resource_fees_active: boolean
+}
+
+interface PolicyData {
+  monetary_v3?: MonetaryPolicyV3Data | null
+}
+
 interface SyncStatusData {
   rpc_response_degraded: boolean
   rpc_response_stale: boolean
@@ -186,6 +219,8 @@ const transientHttpStatuses = new Set([408, 425, 429, 500, 502, 503, 504])
 const expectedReleaseMajor = import.meta.env.VITE_EXPECTED_RELEASE_MAJOR?.trim().replace(/^v/i, '') || ''
 const expectedNetworkProfile = import.meta.env.VITE_EXPECTED_NETWORK_PROFILE?.trim() || ''
 const expectedChainId = import.meta.env.VITE_EXPECTED_CHAIN_ID?.trim() || ''
+const expectedMonetaryPolicyFingerprint =
+  import.meta.env.VITE_EXPECTED_MONETARY_POLICY_FINGERPRINT?.trim().toLowerCase() || ''
 const requireContractsDisabled = (import.meta.env.VITE_REQUIRE_CONTRACTS_DISABLED?.trim().toLowerCase() || 'true') !== 'false'
 
 class PulseDagApiError extends Error {
@@ -410,11 +445,122 @@ function assertLiveIdentity(status: NodeStatusData, release: ReleaseInfoData): b
   return Boolean(expectedReleaseMajor && expectedNetworkProfile && expectedChainId)
 }
 
+function assertV3MonetaryPolicy(
+  release: ReleaseInfoData,
+  policy: PolicyData | null,
+): { monetary: MonetaryPolicyV3Data | null; pinned: boolean } {
+  if (releaseMajor(release.version) !== '3') return { monetary: null, pinned: false }
+
+  const monetary = policy?.monetary_v3
+  if (!monetary) {
+    throw new PulseDagApiError(
+      'PulseDAG v3 /policy omitted the monetary_v3 contract',
+      'MONETARY_POLICY_MISSING',
+    )
+  }
+
+  if (
+    typeof monetary.policy_version !== 'string' ||
+    !monetary.policy_version.trim() ||
+    typeof monetary.policy_fingerprint !== 'string' ||
+    !/^[0-9a-f]{64}$/i.test(monetary.policy_fingerprint)
+  ) {
+    throw new PulseDagApiError(
+      'PulseDAG v3 monetary policy identity is malformed',
+      'MONETARY_POLICY_IDENTITY_INVALID',
+    )
+  }
+
+  for (const [name, value] of [
+    ['atoms_per_coin', monetary.atoms_per_coin],
+    ['max_supply_atoms', monetary.max_supply_atoms],
+    ['genesis_issuance_atoms', monetary.genesis_issuance_atoms],
+    ['year1_target_issuance_atoms', monetary.year1_target_issuance_atoms],
+    ['decay_factor_q64', monetary.decay_factor_q64],
+    ['half_life_end_factor_q64', monetary.half_life_end_factor_q64],
+    ['tail_emission_atoms', monetary.tail_emission_atoms],
+  ] as const) {
+    if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+      throw new PulseDagApiError(
+        `PulseDAG v3 monetary field ${name} must remain an integer string`,
+        'MONETARY_VALUE_ENCODING_INVALID',
+      )
+    }
+  }
+
+  if (
+    monetary.programmable_resource_fees_active !== false ||
+    typeof monetary.production_cadence_frozen !== 'boolean' ||
+    typeof monetary.symbol !== 'string' ||
+    !monetary.symbol.trim() ||
+    !Number.isInteger(monetary.decimals) ||
+    monetary.decimals < 0 ||
+    monetary.decimals > 18 ||
+    !Number.isSafeInteger(monetary.half_life_years) ||
+    monetary.half_life_years <= 0 ||
+    !Number.isSafeInteger(monetary.emission_quantum_seconds) ||
+    monetary.emission_quantum_seconds <= 0 ||
+    !Number.isSafeInteger(monetary.terminal_economic_year) ||
+    monetary.terminal_economic_year <= 0
+  ) {
+    throw new PulseDagApiError(
+      'PulseDAG v3 monetary policy is incompatible with the read-only launch boundary',
+      'MONETARY_POLICY_INCOMPATIBLE',
+    )
+  }
+
+  if (
+    monetary.production_cadence_frozen &&
+    (
+      typeof monetary.production_cadence_fingerprint !== 'string' ||
+      !/^[0-9a-f]{64}$/i.test(monetary.production_cadence_fingerprint)
+    )
+  ) {
+    throw new PulseDagApiError(
+      'PulseDAG v3 reports a frozen production cadence without a valid cadence fingerprint',
+      'MONETARY_CADENCE_IDENTITY_INVALID',
+    )
+  }
+
+  const fingerprint = monetary.policy_fingerprint.toLowerCase()
+  if (
+    expectedMonetaryPolicyFingerprint &&
+    !/^[0-9a-f]{64}$/.test(expectedMonetaryPolicyFingerprint)
+  ) {
+    throw new PulseDagApiError(
+      'Configured monetary-policy fingerprint pin is malformed',
+      'MONETARY_POLICY_PIN_INVALID',
+    )
+  }
+  if (expectedMonetaryPolicyFingerprint && fingerprint !== expectedMonetaryPolicyFingerprint) {
+    throw new PulseDagApiError(
+      `Expected monetary policy ${expectedMonetaryPolicyFingerprint}, received ${fingerprint}`,
+      'MONETARY_POLICY_FINGERPRINT_MISMATCH',
+    )
+  }
+
+  const productionPinsComplete = Boolean(
+    expectedReleaseMajor &&
+    expectedNetworkProfile &&
+    expectedChainId &&
+    expectedMonetaryPolicyFingerprint,
+  )
+  if (productionPinsComplete && !monetary.production_cadence_frozen) {
+    throw new PulseDagApiError(
+      'Pinned v3 production deployment requires a frozen monetary cadence',
+      'MONETARY_CADENCE_NOT_FROZEN',
+    )
+  }
+
+  return { monetary, pinned: Boolean(expectedMonetaryPolicyFingerprint) }
+}
+
 async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
   const startedAt = performance.now()
-  const [statusResult, releaseResult, blocksResult, syncResult, mempoolResult, powResult] = await Promise.allSettled([
+  const [statusResult, releaseResult, policyResult, blocksResult, syncResult, mempoolResult, powResult] = await Promise.allSettled([
     request<NodeStatusData>('/status'),
     request<ReleaseInfoData>('/release'),
+    request<PolicyData>('/policy'),
     request<BlocksData>('/blocks/recent?limit=20'),
     request<SyncStatusData>('/sync/status'),
     request<MempoolData>('/mempool'),
@@ -429,6 +575,11 @@ async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
   const release = releaseResult.value
   const blocks = blocksResult.value
   const identityPinned = assertLiveIdentity(status, release)
+  if (releaseMajor(release.version) === '3' && policyResult.status === 'rejected') {
+    throw policyResult.reason
+  }
+  const policy = policyResult.status === 'fulfilled' ? policyResult.value : null
+  const { monetary, pinned: monetaryPolicyPinned } = assertV3MonetaryPolicy(release, policy)
   const sync = syncResult.status === 'fulfilled' ? syncResult.value : null
   const mempool = mempoolResult.status === 'fulfilled' ? mempoolResult.value : null
   const pow = powResult.status === 'fulfilled' ? powResult.value : null
@@ -436,6 +587,15 @@ async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
 
   if (!identityPinned) {
     warnings.push('Network identity is verified against /status and /release but is not pinned to a frozen deployment identity')
+  }
+  if (releaseMajor(release.version) === '3' && !monetaryPolicyPinned) {
+    warnings.push('Monetary policy is verified from /policy but is not pinned to a frozen deployment fingerprint')
+  }
+  if (monetary && !monetary.production_cadence_frozen) {
+    warnings.push('Production monetary cadence is not frozen yet')
+  }
+  if (policyResult.status === 'rejected' && releaseMajor(release.version) !== '3') {
+    warnings.push(`Policy metadata unavailable: ${rejectionMessage(policyResult)}`)
   }
   if (syncResult.status === 'rejected') warnings.push(`Sync status unavailable: ${rejectionMessage(syncResult)}`)
   if (mempoolResult.status === 'rejected') warnings.push(`Mempool status unavailable: ${rejectionMessage(mempoolResult)}`)
@@ -468,6 +628,16 @@ async function getLiveSnapshot(): Promise<ExplorerSnapshot> {
     consensusMode: status.consensus_mode,
     contractsEnabled: status.contracts_enabled,
     identityPinned,
+    monetaryPolicyVersion: monetary?.policy_version ?? null,
+    monetaryPolicyFingerprint: monetary?.policy_fingerprint ?? null,
+    monetaryPolicyPinned,
+    monetarySymbol: monetary?.symbol ?? null,
+    monetaryDecimals: monetary?.decimals ?? null,
+    maxSupplyAtoms: monetary?.max_supply_atoms ?? null,
+    monetaryHalfLifeYears: monetary?.half_life_years ?? null,
+    monetaryEmissionQuantumSeconds: monetary?.emission_quantum_seconds ?? null,
+    monetaryTerminalEconomicYear: monetary?.terminal_economic_year ?? null,
+    monetaryProductionCadenceFrozen: monetary?.production_cadence_frozen ?? false,
     snapshotHeight: status.snapshot_height,
     rpcDegraded: status.rpc_response_degraded || status.rpc_response_stale,
     powStatus: pow?.status ?? 'unknown',
